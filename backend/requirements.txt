@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+feedparser
+requests
+sqlalchemy
+python-dotenv
+pymysql
+a2wsgi

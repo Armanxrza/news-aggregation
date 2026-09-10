@@ -1,0 +1,33 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+
+# Node and Next.js
+node_modules/
+.next/
+out/
+
+# Local databases and runtime output
+*.db
+*.sqlite
+*.sqlite3
+*.log
+
+# Editor and OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+frontend/.git-nested-backup/
+
+# Local build output
+.dist/

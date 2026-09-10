@@ -1,0 +1,330 @@
+[
+  {
+    "domain": "onlinekhabar.com",
+    "rss_links": [
+      "https://www.onlinekhabar.com/feed",
+      "https://www.onlinekhabar.com/comments/feed"
+    ],
+    "status": "Success"
+  },
+  {
+    "domain": "setopati.com",
+    "rss_links": [],
+    "status": "Error: Cannot connect to host setopati.com:443 ssl:True [SSLCertVerificationError: (1, \"[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: Hostname mismatch, certificate is not valid for 'setopati.com'. (_ssl.c:1028)\")]"
+  },
+  {
+    "domain": "ratopati.com",
+    "rss_links": [
+      "https://www.ratopati.com/feed"
+    ],
+    "status": "Success"
+  },
+  {
+    "domain": "annapurnapost.com",
+    "rss_links": [
+      "https://annapurnapost.com/rss"
+    ],
+    "status": "Success"
+  },
+  {
+    "domain": "ekantipur.com",
+    "rss_links": [
+      "https://ekantipur.com/feed"
+    ],
+    "status": "Success"
+  },
+  {
+    "domain": "baahrakhari.com",
+    "rss_links": [
+      "https://baahrakhari.com/feed"
+    ],
+    "status": "Success"
+  },
+  {
+    "domain": "kharibot.com",
+    "rss_links": [
+      "https://kharibot.com/feed"
+    ],
+    "status": "Success"
+  },
+  {
+    "domain": "ktmsamachar.com",
+    "rss_links": [],
+    "status": "Error: Cannot connect to host ktmsamachar.com:443 ssl:default [getaddrinfo failed]"
+  },
+  {
+    "domain": "kathmandutoday.com",
+    "rss_links": [
+      "https://www.kathmandutoday.com/feed"
+    ],
+    "status": "Success"
+  },
+  {
+    "domain": "tajakhabar.com",
+    "rss_links": [],
+    "status": "Error: Cannot connect to host tajakhabar.com:443 ssl:default [getaddrinfo failed]"
+  },
+  {
+    "domain": "clickmandu.com",
+    "rss_links": [
+      "https://clickmandu.com/feed"
+    ],
+    "status": "Success"
+  },
+  {
+    "domain": "bizmandu.com",
+    "rss_links": [
+      "https://bizmandu.com/feed"
+    ],
+    "status": "Success"
+  },
+  {
+    "domain": "purbadharkhabar.com",
+    "rss_links": [
+      "https://purbadharkhabar.com/feed"
+    ],
+    "status": "Success"
+  },
+  {
+    "domain": "arthakoartha.com",
+    "rss_links": [
+      "https://arthakoartha.com/feed/",
+      "https://arthakoartha.com/comments/feed/"
+    ],
+    "status": "Success"
+  },
+  {
+    "domain": "capitalnepal.com",
+    "rss_links": [
+      "https://capitalnepal.com/feed"
+    ],
+    "status": "Success"
+  },
+  {
+    "domain": "aashthanews.com",
+    "rss_links": [],
+    "status": "Error: Cannot connect to host aashthanews.com:443 ssl:default [getaddrinfo failed]"
+  },
+  {
+    "domain": "wadapalika.com",
+    "rss_links": [],
+    "status": "Error: Cannot connect to host wadapalika.com:443 ssl:default [The remote computer refused the network connection]"
+  },
+  {
+    "domain": "nagariknews.nagariknetwork.com",
+    "rss_links": [
+      "https://nagariknews.nagariknetwork.com/feed"
+    ],
+    "status": "Success"
+  },
+  {
+    "domain": "nayapatrikadaily.com",
+    "rss_links": [],
+    "status": "No RSS Found"
+  },
+  {
+    "domain": "aarthikkhabar.com",
+    "rss_links": [],
+    "status": "Error: Cannot connect to host aarthikkhabar.com:443 ssl:default [The remote computer refused the network connection]"
+  },
+  {
+    "domain": "sunaulonepal.com",
+    "rss_links": [],
+    "status": "No RSS Found"
+  },
+  {
+    "domain": "kathmandupost.com",
+    "rss_links": [
+      "https://kathmandupost.com/rss"
+    ],
+    "status": "Success"
+  },
+  {
+    "domain": "thehimalayantimes.com",
+    "rss_links": [
+      "https://thehimalayantimes.com/rss"
+    ],
+    "status": "Success"
+  },
+  {
+    "domain": "bbc.com/nepali",
+    "rss_links": [],
+    "status": "No RSS Found"
+  },
+  {
+    "domain": "rajdhanidaily.com",
+    "rss_links": [
+      "https://rajdhanidaily.com/comments/feed/",
+      "https://rajdhanidaily.com/feed/"
+    ],
+    "status": "Success"
+  },
+  {
+    "domain": "laganinews.com",
+    "rss_links": [
+      "https://laganinews.com/comments/feed/",
+      "https://laganinews.com/feed/"
+    ],
+    "status": "Success"
+  },
+  {
+    "domain": "pardafas.com",
+    "rss_links": [
+      "https://www.pardafas.com/comments/feed/",
+      "https://www.pardafas.com/feed/"
+    ],
+    "status": "Success"
+  },
+  {
+    "domain": "taksaarnews.com",
+    "rss_links": [],
+    "status": "Error: Cannot connect to host taksaarnews.com:443 ssl:default [getaddrinfo failed]"
+  },
+  {
+    "domain": "karobaardainik.com",
+    "rss_links": [],
+    "status": "Error: Cannot connect to host karobaardainik.com:443 ssl:default [getaddrinfo failed]"
+  },
+  {
+    "domain": "aarthikabhiyaan.com",
+    "rss_links": [],
+    "status": "Error: Cannot connect to host aarthikabhiyaan.com:443 ssl:default [getaddrinfo failed]"
+  },
+  {
+    "domain": "nepalitimes.com",
+    "rss_links": [
+      "https://nepalitimes.com/feed"
+    ],
+    "status": "Success"
+  },
+  {
+    "domain": "samacharpatra.com",
+    "rss_links": [],
+    "status": "No RSS Found"
+  },
+  {
+    "domain": "himalayadarpan.com",
+    "rss_links": [
+      "https://himalayadarpan.com/comments/feed/",
+      "https://himalayadarpan.com/web-stories/feed/",
+      "https://himalayadarpan.com/feed/"
+    ],
+    "status": "Success"
+  },
+  {
+    "domain": "osnepal.com",
+    "rss_links": [
+      "https://osnepal.com/feed"
+    ],
+    "status": "Success"
+  },
+  {
+    "domain": "thahakhabar.com",
+    "rss_links": [
+      "https://thahakhabar.com/feed"
+    ],
+    "status": "Success"
+  },
+  {
+    "domain": "koshionline.com",
+    "rss_links": [],
+    "status": "No RSS Found"
+  },
+  {
+    "domain": "hamrokura.com",
+    "rss_links": [],
+    "status": "Error: Cannot connect to host hamrokura.com:443 ssl:default [The remote computer refused the network connection]"
+  },
+  {
+    "domain": "arthasarokar.com",
+    "rss_links": [
+      "https://arthasarokar.com/feed",
+      "https://arthasarokar.com/comments/feed"
+    ],
+    "status": "Success"
+  },
+  {
+    "domain": "nepalipatra.com",
+    "rss_links": [],
+    "status": "Error: "
+  },
+  {
+    "domain": "nepalsamaye.com",
+    "rss_links": [],
+    "status": "Error: Cannot connect to host nepalsamaye.com:443 ssl:default [getaddrinfo failed]"
+  },
+  {
+    "domain": "bizsala.com",
+    "rss_links": [],
+    "status": "Error: Cannot connect to host bizsala.com:443 ssl:default [getaddrinfo failed]"
+  },
+  {
+    "domain": "ujyaaloonline.com",
+    "rss_links": [
+      "https://ujyaaloonline.com/feed"
+    ],
+    "status": "Success"
+  },
+  {
+    "domain": "himalkhabar.com",
+    "rss_links": [
+      "https://himalkhabar.com/feed"
+    ],
+    "status": "Success"
+  },
+  {
+    "domain": "goalnepal.com",
+    "rss_links": [],
+    "status": "No RSS Found"
+  },
+  {
+    "domain": "hamrokhelkud.com",
+    "rss_links": [
+      "https://hamrokhelkud.com/feed"
+    ],
+    "status": "Success"
+  },
+  {
+    "domain": "radionepal.gov.np",
+    "rss_links": [],
+    "status": "Error: Cannot connect to host radionepal.gov.np:443 ssl:default [An existing connection was forcibly closed by the remote host]"
+  },
+  {
+    "domain": "janakpurtoday.com.np",
+    "rss_links": [],
+    "status": "Error: Cannot connect to host janakpurtoday.com.np:443 ssl:default [getaddrinfo failed]"
+  },
+  {
+    "domain": "khabarpurwanchal.com",
+    "rss_links": [
+      "https://khabarpurwanchal.com/comments/feed/",
+      "https://khabarpurwanchal.com/feed/"
+    ],
+    "status": "Success"
+  },
+  {
+    "domain": "blastkhabar.com",
+    "rss_links": [],
+    "status": "No RSS Found"
+  },
+  {
+    "domain": "avenues.tv",
+    "rss_links": [
+      "https://avenues.tv/feed/",
+      "https://avenues.tv/comments/feed/"
+    ],
+    "status": "Success"
+  },
+  {
+    "domain": "radiosagarmatha.org.np",
+    "rss_links": [
+      "https://radiosagarmatha.org.np/feed"
+    ],
+    "status": "Success"
+  },
+  {
+    "domain": "nepalipost.com",
+    "rss_links": [],
+    "status": "Error: Cannot connect to host nepalipost.com:443 ssl:True [SSLCertVerificationError: (1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: certificate has expired (_ssl.c:1028)')]"
+  }
+]

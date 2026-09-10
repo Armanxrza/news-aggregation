@@ -1,0 +1,7 @@
+# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION BEGIN
+PassengerAppRoot "/home2/yagyatech/domains/sajhanews.yagyatech.com.np/public_html"
+PassengerBaseURI "/"
+PassengerNodejs "/home2/yagyatech/nodevenv/domains/sajhanews.yagyatech.com.np/public_html/18/bin/node"
+PassengerAppType node
+PassengerStartupFile server.js
+# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION END
