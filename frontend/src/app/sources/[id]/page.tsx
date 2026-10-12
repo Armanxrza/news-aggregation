@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ExternalLink, Rss } from "lucide-react";
+import { ArrowLeft, ExternalLink, Rss } from "@/components/icons";
 import { fetchSourceDetail } from "@/lib/api";
 import { framingLabel, perspectiveLabel } from "@/lib/framing";
 import { SourceFramingHistory } from "@/components/SourceFramingHistory";

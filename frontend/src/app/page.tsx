@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Search } from "lucide-react";
+import { Search } from "@/components/icons";
 import { StoryCard } from "@/components/StoryCard";
 import { RefreshFeedButton } from "@/components/RefreshFeedButton";
 import { fetchStories } from "@/lib/api";

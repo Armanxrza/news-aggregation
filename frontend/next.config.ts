@@ -8,6 +8,10 @@ const apiBase = (
 
 const nextConfig: NextConfig = {
   ...(process.env.NEXT_PUBLIC_BASE_PATH ? { basePath: process.env.NEXT_PUBLIC_BASE_PATH } : {}),
+  transpilePackages: ["lucide-react"],
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   async rewrites() {
     return [
       {

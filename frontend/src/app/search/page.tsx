@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Search } from "lucide-react";
+import { Search } from "@/components/icons";
 import { fetchSearch } from "@/lib/api";
 import { StoryCard } from "@/components/StoryCard";
 import { framingLabel } from "@/lib/framing";

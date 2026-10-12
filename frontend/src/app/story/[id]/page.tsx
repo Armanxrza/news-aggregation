@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "@/components/icons";
 import { fetchStoryDetail } from "@/lib/api";
 import { formatTimeAgo } from "@/lib/utils";
 import { CoverageComparison } from "@/components/CoverageComparison";
