@@ -27,6 +27,7 @@ import {
   fetchSources,
   fetchStats,
   getStoredAdminKey,
+  resetDatabase,
   setStoredAdminKey,
   triggerCrawl,
   updateSource,
@@ -103,6 +104,7 @@ export default function AdminPanel() {
 
   const [formLoading, setFormLoading] = useState(false);
   const [crawlState, setCrawlState] = useState<"idle" | "running" | "done" | "error">("idle");
+  const [resetLoading, setResetLoading] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -213,6 +215,26 @@ export default function AdminPanel() {
     }
   };
 
+  const handleResetDb = async () => {
+    if (
+      !window.confirm(
+        "⚠️ Reset Database?\n\nThis will wipe all existing articles, stories, claims, and crawl history, and re-seed clean sources and demo stories from scratch.",
+      )
+    ) {
+      return;
+    }
+    setResetLoading(true);
+    try {
+      const res = await resetDatabase(adminKey || undefined);
+      toast("success", `Database reset successfully! (${res.sources_seeded} sources seeded)`);
+      refreshData();
+    } catch (err: unknown) {
+      toast("error", err instanceof Error ? err.message : "Failed to reset database.");
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-8 pb-12">
       <div className="fixed bottom-6 right-6 z-50 flex w-80 flex-col gap-2">
@@ -228,28 +250,39 @@ export default function AdminPanel() {
           </h1>
           <p className="mt-1 text-sm text-foreground/55">Sources, crawls, and diagnostics</p>
         </div>
-        <button
-          type="button"
-          onClick={handleCrawl}
-          disabled={crawlState === "running"}
-          className={cn(
-            "flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-bold transition-colors",
-            crawlState === "running" && "cursor-not-allowed bg-teal-100 text-teal-800",
-            crawlState === "done" && "bg-emerald-100 text-emerald-800",
-            crawlState === "error" && "bg-red-100 text-red-800",
-            crawlState === "idle" && "bg-teal-700 text-white hover:bg-teal-800",
-          )}
-        >
-          {crawlState === "running" ? (
-            <>
-              <Loader2 size={15} className="animate-spin" /> Crawling…
-            </>
-          ) : (
-            <>
-              <RefreshCw size={15} /> Run crawler
-            </>
-          )}
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={handleResetDb}
+            disabled={resetLoading}
+            className="flex items-center gap-2 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-2.5 text-sm font-bold text-red-500 hover:bg-red-500/20 transition-colors disabled:opacity-50"
+          >
+            {resetLoading ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+            Reset Database
+          </button>
+          <button
+            type="button"
+            onClick={handleCrawl}
+            disabled={crawlState === "running"}
+            className={cn(
+              "flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-bold transition-colors",
+              crawlState === "running" && "cursor-not-allowed bg-teal-100 text-teal-800",
+              crawlState === "done" && "bg-emerald-100 text-emerald-800",
+              crawlState === "error" && "bg-red-100 text-red-800",
+              crawlState === "idle" && "bg-teal-700 text-white hover:bg-teal-800",
+            )}
+          >
+            {crawlState === "running" ? (
+              <>
+                <Loader2 size={15} className="animate-spin" /> Crawling…
+              </>
+            ) : (
+              <>
+                <RefreshCw size={15} /> Run crawler
+              </>
+            )}
+          </button>
+        </div>
       </header>
 
       <section className="card p-5">

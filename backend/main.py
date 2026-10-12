@@ -1019,3 +1019,36 @@ def list_stories_raw(
 ):
     payload = list_stories(topic=topic, lang=lang, search=search, skip=skip, limit=limit, db=db)
     return payload["items"]
+
+
+@app.post("/api/admin/reset-db")
+@app.post("/admin/reset-db")
+def reset_database(
+    db: Session = Depends(get_db),
+    _: None = Depends(require_admin),
+):
+    from scripts.seed import seed_demo_story, seed_eval_pairs, seed_sources
+    from services.nepal import ensure_entity_file
+
+    db.query(StoryCorrection).delete()
+    db.query(AnalysisRun).delete()
+    db.query(CrawlRun).delete()
+    db.query(Claim).delete()
+    db.query(Article).delete()
+    db.query(Story).delete()
+    db.query(Source).delete()
+    db.commit()
+
+    ensure_entity_file()
+    src_created, src_updated = seed_sources(db)
+    pairs_added, _ = seed_eval_pairs(db)
+    demo_n = seed_demo_story(db)
+
+    return {
+        "ok": True,
+        "message": "Database reset and seeded successfully",
+        "sources_seeded": src_created or src_updated,
+        "eval_pairs": pairs_added,
+        "demo_articles": demo_n,
+    }
+

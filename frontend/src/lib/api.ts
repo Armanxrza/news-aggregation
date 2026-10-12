@@ -437,3 +437,14 @@ export async function analyzeArticleFraming(
     adminKey,
   );
 }
+
+export async function resetDatabase(
+  adminKey?: string | null,
+): Promise<{ ok: boolean; message: string; sources_seeded: number; demo_articles: number }> {
+  return adminFetch(
+    "/api/admin/reset-db",
+    { method: "POST" },
+    adminKey,
+  );
+}
+
