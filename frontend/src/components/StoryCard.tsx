@@ -1,132 +1,125 @@
-import React from 'react';
-import Link from 'next/link';
-import { BiasBar } from './BiasBar';
-import { Clock, BookOpen, ExternalLink, ShieldAlert, Sparkles } from 'lucide-react';
+import Link from "next/link";
+import type { StoryDTO } from "@/lib/api";
+import { BiasBar } from "@/components/BiasBar";
+import { NewsImage } from "@/components/NewsImage";
+import { formatTimeAgo } from "@/lib/utils";
 
-const FALLBACK_THUMBNAIL =
-  "https://images.unsplash.com/photo-1495020689067-958852a7765e?w=800&q=80";
+export type StoryCardData = Pick<
+  StoryDTO,
+  | "id"
+  | "ai_headline"
+  | "topic"
+  | "created_at"
+  | "source_count"
+  | "thumbnail_url"
+  | "sources"
+  | "languages"
+  | "bias_left_pct"
+  | "bias_center_pct"
+  | "bias_right_pct"
+  | "gov_counts"
+  | "source_bias"
+>;
 
-export interface Story {
-  id: string;
-  headline: string;
-  thumbnail_url: string | null;
-  source_count: number;
-  sources: string[];
-  languages: string[];
-  bias: {
-    left: number;
-    center: number;
-    right: number;
-  };
-  time_ago: string;
-  topic: string;
-}
+const POV_STYLE: Record<string, string> = {
+  critical: "bg-red-100 text-red-700",
+  neutral: "bg-slate-100 text-slate-600",
+  supportive: "bg-teal-100 text-teal-800",
+};
 
-export function StoryCard({ story }: { story: Story }) {
-  // Blindspot detection logic (Ground News signature)
-  const isLeftBlindspot = story.bias.left >= 55;
-  const isRightBlindspot = story.bias.right >= 55;
-  const isBalanced = !isLeftBlindspot && !isRightBlindspot && Math.abs(story.bias.left - story.bias.right) < 25;
+export function StoryCard({
+  story,
+  featured = false,
+}: {
+  story: StoryCardData;
+  featured?: boolean;
+}) {
+  // Prefer soft percentage mix (varies per story); fall back to hard counts
+  const critical = story.bias_left_pct ?? story.gov_counts?.critical ?? 0;
+  const neutral = story.bias_center_pct ?? story.gov_counts?.neutral ?? 0;
+  const supportive = story.bias_right_pct ?? story.gov_counts?.supportive ?? 0;
+
+  if (featured) {
+    return (
+      <Link
+        href={`/story/${story.id}`}
+        className="group relative block overflow-hidden rounded-2xl bg-slate-900 shadow-sm"
+      >
+        <NewsImage
+          src={story.thumbnail_url}
+          alt=""
+          topic={story.topic}
+          priority
+          className="aspect-[16/9] w-full sm:aspect-[21/9]"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 space-y-2.5 p-5 sm:p-7">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-white/75">
+            <span className="rounded bg-white/15 px-2 py-0.5 font-medium backdrop-blur-sm">
+              {story.topic ?? "News"}
+            </span>
+            <span>{story.source_count} sources</span>
+            <span>{formatTimeAgo(story.created_at)}</span>
+            <span className="rounded bg-teal-500/30 px-2 py-0.5 font-semibold text-teal-100">
+              Gov POV
+            </span>
+          </div>
+          <h2 className="max-w-3xl font-serif text-2xl font-bold leading-tight text-white sm:text-3xl">
+            {story.ai_headline}
+          </h2>
+          <BiasBar
+            className="max-w-md [&_span]:!text-white/85"
+            left={critical}
+            center={neutral}
+            right={supportive}
+          />
+        </div>
+      </Link>
+    );
+  }
 
   return (
-    <Link href={`/story/${story.id}`} className="group block h-full">
-      <article className="glass-card rounded-2xl overflow-hidden flex flex-col h-full bg-surface border border-border transition-all duration-300 hover:shadow-2xl hover:border-blue-500/40">
-        {/* Card Media Header */}
-        <div className="relative h-52 w-full overflow-hidden shrink-0 bg-slate-900/60">
-          <img
-            src={story.thumbnail_url ?? FALLBACK_THUMBNAIL}
-            alt={story.headline}
-            className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-105 opacity-90 group-hover:opacity-100"
-            loading="lazy"
-          />
-          {/* Subtle vignette gradient */}
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-black/30 to-transparent" />
-
-          {/* Top badges */}
-          <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2">
-            <span className="bg-background/90 backdrop-blur-md border border-border/80 px-2.5 py-1 rounded-md text-[10px] font-extrabold uppercase tracking-wider text-blue-400">
-              {story.topic}
-            </span>
-
-            <div className="flex items-center gap-1.5">
-              {story.languages.includes('ne') && (
-                <span className="bg-red-600/90 backdrop-blur-md border border-red-400/30 px-2 py-0.5 rounded-md text-[10px] font-bold text-white flex items-center gap-1 shadow-sm">
-                  🇳🇵 नेपाली
-                </span>
-              )}
-              {isLeftBlindspot && (
-                <span className="bg-blue-600/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 shadow-sm">
-                  <ShieldAlert size={10} /> Left Blindspot
-                </span>
-              )}
-              {isRightBlindspot && (
-                <span className="bg-red-600/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 shadow-sm">
-                  <ShieldAlert size={10} /> Right Blindspot
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Bottom of Image: Source count badge */}
-          <div className="absolute bottom-3 left-3 flex items-center gap-1.5 bg-background/80 backdrop-blur-md border border-border/60 text-foreground/90 text-[11px] font-bold px-2.5 py-1 rounded-lg">
-            <BookOpen size={12} className="text-blue-400" />
-            <span>{story.source_count} {story.source_count === 1 ? "Perspective" : "Perspectives"}</span>
-          </div>
+    <Link
+      href={`/story/${story.id}`}
+      className="group flex overflow-hidden rounded-xl border border-border-subtle bg-white shadow-[0_1px_0_rgba(15,23,42,0.04)] transition hover:border-border hover:shadow-md"
+    >
+      <NewsImage
+        src={story.thumbnail_url}
+        alt=""
+        topic={story.topic}
+        className="min-h-[128px] w-[36%] min-w-[118px] max-w-[210px] shrink-0 self-stretch sm:min-h-[140px] sm:w-48"
+      />
+      <div className="flex min-w-0 flex-1 flex-col justify-center gap-1.5 p-3.5 sm:p-4">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-foreground/50">
+          <span className="font-semibold text-teal-800">{story.topic ?? "News"}</span>
+          <span>·</span>
+          <span>{story.source_count} sources</span>
+          <span>·</span>
+          <span>{formatTimeAgo(story.created_at)}</span>
         </div>
-
-        {/* Content Section */}
-        <div className="p-5 flex flex-col flex-1 justify-between gap-4">
-          <div className="space-y-3">
-            <h3 className="text-base font-bold leading-snug line-clamp-2 text-foreground group-hover:text-blue-400 transition-colors">
-              {story.headline}
-            </h3>
-
-            {/* Source Outlets Chips */}
-            {story.sources.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {story.sources.slice(0, 3).map((src) => (
-                  <span
-                    key={src}
-                    className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-surface-hover text-foreground/75 border border-border"
-                  >
-                    {src}
-                  </span>
-                ))}
-                {story.sources.length > 3 && (
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-surface-muted text-foreground/50 border border-border">
-                    +{story.sources.length - 3} more
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Ground News Bias Breakdown Footer */}
-          <div className="pt-3 border-t border-border/60 space-y-2">
-            <div className="flex items-center justify-between text-[11px] font-semibold">
-              <span className="text-blue-400">Left {Math.round(story.bias.left)}%</span>
-              <span className="text-slate-400">Center {Math.round(story.bias.center)}%</span>
-              <span className="text-red-400">Right {Math.round(story.bias.right)}%</span>
-            </div>
-
-            <BiasBar
-              left={story.bias.left}
-              center={story.bias.center}
-              right={story.bias.right}
-              className="h-1.5 rounded-full"
-            />
-
-            <div className="flex items-center justify-between text-[10px] text-foreground/45 pt-1">
-              <span className="flex items-center gap-1">
-                <Clock size={11} /> Fetched {story.time_ago}
+        <h2 className="font-serif text-base font-bold leading-snug text-foreground group-hover:text-teal-900 sm:text-lg">
+          {story.ai_headline}
+        </h2>
+        {story.source_bias && story.source_bias.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {story.source_bias.slice(0, 4).map((s) => (
+              <span
+                key={s.source}
+                className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${POV_STYLE[s.pov] || POV_STYLE.neutral}`}
+              >
+                {s.source.split(" ")[0]} · C{s.scores?.critical ?? "?"}%/S{s.scores?.supportive ?? "?"}%
               </span>
-              <span className="group-hover:text-blue-400 transition-colors font-medium flex items-center gap-1">
-                Compare Coverage →
-              </span>
-            </div>
+            ))}
           </div>
-        </div>
-      </article>
+        )}
+        <BiasBar
+          className="mt-0.5 max-w-sm"
+          left={critical}
+          center={neutral}
+          right={supportive}
+          compact
+        />
+      </div>
     </Link>
   );
 }

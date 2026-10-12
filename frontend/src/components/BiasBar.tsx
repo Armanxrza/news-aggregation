@@ -1,34 +1,66 @@
-import React from 'react';
-import { cn } from '@/lib/utils';
-
-interface BiasBarProps {
-  left: number; // percentage 0-100
-  center: number;
-  right: number;
+type Props = {
+  left: number | null | undefined;
+  center: number | null | undefined;
+  right: number | null | undefined;
+  critical?: number;
+  neutral?: number;
+  supportive?: number;
   className?: string;
-}
+  compact?: boolean;
+  /** Government POV axis (default): Critical · Neutral · Supportive */
+  axis?: "government" | "political";
+};
 
-export function BiasBar({ left, center, right, className }: BiasBarProps) {
-  // Normalize if they don't add up to 100 perfectly due to rounding
-  const total = left + center + right;
-  const l = total > 0 ? (left / total) * 100 : 33.3;
-  const c = total > 0 ? (center / total) * 100 : 33.4;
-  const r = total > 0 ? (right / total) * 100 : 33.3;
+export function BiasBar({
+  left,
+  center,
+  right,
+  critical,
+  neutral,
+  supportive,
+  className = "",
+  compact,
+  axis = "government",
+}: Props) {
+  const l = critical ?? left ?? 0;
+  const c = neutral ?? center ?? 0;
+  const r = supportive ?? right ?? 0;
+  const total = l + c + r || 1;
+  const lp = (l / total) * 100;
+  const cp = (c / total) * 100;
+  const rp = (r / total) * 100;
+
+  const labels =
+    axis === "government"
+      ? { l: "Critical", c: "Neutral", r: "Supportive" }
+      : { l: "Left", c: "Centre", r: "Right" };
 
   return (
-    <div className={cn("w-full h-2 rounded-full overflow-hidden flex bg-border/50 gap-0.5", className)}>
-      <div 
-        style={{ width: `${l}%` }} 
-        className="h-full bg-[var(--color-bias-left)] transition-all duration-500" 
-      />
-      <div 
-        style={{ width: `${c}%` }} 
-        className="h-full bg-[var(--color-bias-center)] transition-all duration-500" 
-      />
-      <div 
-        style={{ width: `${r}%` }} 
-        className="h-full bg-[var(--color-bias-right)] transition-all duration-500" 
-      />
+    <div className={`space-y-1.5 ${className}`}>
+      <div
+        className={`flex w-full overflow-hidden rounded-full ${compact ? "h-2" : "h-2.5"}`}
+        role="img"
+        aria-label={`Gov POV ${labels.l} ${Math.round(lp)}%, ${labels.c} ${Math.round(cp)}%, ${labels.r} ${Math.round(rp)}%`}
+      >
+        <div className="bg-[#dc2626]" style={{ width: `${lp}%` }} title={labels.l} />
+        <div className="bg-[#94a3b8]" style={{ width: `${cp}%` }} title={labels.c} />
+        <div className="bg-[#0d9488]" style={{ width: `${rp}%` }} title={labels.r} />
+      </div>
+      <div
+        className={`flex justify-between gap-2 font-semibold ${
+          compact ? "text-[10px]" : "text-[11px]"
+        }`}
+      >
+        <span className="text-red-600">
+          {labels.l} {Math.round(lp)}%
+        </span>
+        <span className="text-slate-500">
+          {labels.c} {Math.round(cp)}%
+        </span>
+        <span className="text-teal-700">
+          {labels.r} {Math.round(rp)}%
+        </span>
+      </div>
     </div>
   );
 }

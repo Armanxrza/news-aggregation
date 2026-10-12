@@ -1,0 +1,12 @@
+{"text": "The government successfully launched a new social security programme that officials said will benefit rural households.", "label": "government_supportive", "language": "en"}
+{"text": "Opposition leaders criticised the government for failing to control inflation and alleged widespread mismanagement.", "label": "government_critical", "language": "en"}
+{"text": "The Ministry of Finance released quarterly revenue figures showing a modest increase compared with last year.", "label": "government_neutral", "language": "en"}
+{"text": "सरकारले ग्रामीण क्षेत्रका लागि नयाँ सामाजिक सुरक्षा कार्यक्रम सफलतापूर्वक सुरु गरेको छ।", "label": "government_supportive", "language": "ne"}
+{"text": "विपक्षी दलहरूले सरकारले महँगी नियन्त्रण गर्न असफल भएको भन्दै आलोचना गरेका छन्।", "label": "government_critical", "language": "ne"}
+{"text": "अर्थ मन्त्रालयले गत वर्षको तुलनामा राजस्वमा सामान्य वृद्धि देखिएको तथ्यांक सार्वजनिक गरेको छ।", "label": "government_neutral", "language": "ne"}
+{"text": "Corruption allegations continue to dog the cabinet as CIAA expands its probe into procurement contracts.", "label": "government_critical", "language": "en"}
+{"text": "Prime Minister praised civil servants for historic achievement in digital service delivery.", "label": "government_supportive", "language": "en"}
+{"text": "Parliament deferred debate on the amendment bill until next session, according to the speaker.", "label": "government_neutral", "language": "en"}
+{"text": "प्रधानमन्त्रीले डिजिटल सेवा प्रवाहमा ऐतिहासिक उपलब्धि भएको भन्दै कर्मचारीको प्रशंसा गरे।", "label": "government_supportive", "language": "ne"}
+{"text": "अख्तियारको छानबिन विस्तार हुँदा मन्त्रिपरिषद्माथि भ्रष्टाचारको आरोप जारी छ।", "label": "government_critical", "language": "ne"}
+{"text": "सभामुखका अनुसार संशोधन विधेयकमाथि छलफल अर्को अधिवेशनसम्म स्थगित गरिएको छ।", "label": "government_neutral", "language": "ne"}

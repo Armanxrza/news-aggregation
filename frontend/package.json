@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "node server.js"
+    "start": "next start",
+    "start:custom": "node server.js"
   },
   "dependencies": {
     "@radix-ui/react-alert-dialog": "^1.1.23",

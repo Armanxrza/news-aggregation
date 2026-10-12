@@ -1,0 +1,48 @@
+services:
+  # ============================================================================
+  # 1. SajhaNews Backend API (FastAPI / Python)
+  # ============================================================================
+  - type: web
+    name: sajhanews-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    region: oregon
+    buildCommand: "pip install -r requirements.txt && python -m scripts.seed"
+    startCommand: "uvicorn main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: EMBEDDING_ENABLED
+        value: "false"
+      - key: FRAMING_ENABLED
+        value: "false"
+      - key: ANALYZE_ON_CRAWL
+        value: "false"
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: ADMIN_AUTH_DISABLED
+        value: "true"
+      - key: DATABASE_URL
+        value: sqlite:///news_aggregator.db
+
+  # ============================================================================
+  # 2. SajhaNews Frontend Web (Next.js / Node.js)
+  # ============================================================================
+  - type: web
+    name: sajhanews-frontend
+    runtime: node
+    rootDir: frontend
+    plan: free
+    region: oregon
+    buildCommand: "npm install && npm run build"
+    startCommand: "npm run start -- -p $PORT"
+    envVars:
+      - key: NODE_VERSION
+        value: 20.18.0
+      - key: NEXT_PUBLIC_API_BASE
+        fromService:
+          type: web
+          name: sajhanews-api
+          property: host

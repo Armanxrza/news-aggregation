@@ -1,0 +1,132 @@
+[
+  {
+    "name": "BBC News",
+    "domain": "bbc.co.uk",
+    "rss_url": "https://feeds.bbci.co.uk/news/world/rss.xml",
+    "language": "en",
+    "category": "World",
+    "perspective_label": null,
+    "ownership_notes": "Public service broadcaster (UK).",
+    "transparency_notes": "International outlet; not a Nepal domestic publisher."
+  },
+  {
+    "name": "Al Jazeera",
+    "domain": "aljazeera.com",
+    "rss_url": "https://www.aljazeera.com/xml/rss/all.xml",
+    "language": "en",
+    "category": "World",
+    "perspective_label": null,
+    "ownership_notes": "Al Jazeera Media Network.",
+    "transparency_notes": "International outlet."
+  },
+  {
+    "name": "The Kathmandu Post",
+    "domain": "kathmandupost.com",
+    "rss_url": "https://kathmandupost.com/rss/",
+    "language": "en",
+    "category": "Nepal",
+    "perspective_label": "not_independently_rated",
+    "ownership_notes": "Kantipur Media Group (English daily).",
+    "transparency_notes": "Perspective not independently rated by SajhaNews."
+  },
+  {
+    "name": "Nepali Times",
+    "domain": "nepalitimes.com",
+    "rss_url": "https://www.nepalitimes.com/feed",
+    "language": "en",
+    "category": "Nepal",
+    "perspective_label": "not_independently_rated",
+    "ownership_notes": "Himalmedia Pvt Ltd.",
+    "transparency_notes": "Perspective not independently rated by SajhaNews."
+  },
+  {
+    "name": "Capital Nepal",
+    "domain": "capitalnepal.com",
+    "rss_url": "https://capitalnepal.com/feed",
+    "language": "en",
+    "category": "Business",
+    "perspective_label": "not_independently_rated"
+  },
+  {
+    "name": "Clickmandu",
+    "domain": "clickmandu.com",
+    "rss_url": "https://clickmandu.com/feed",
+    "language": "en",
+    "category": "Nepal",
+    "perspective_label": "not_independently_rated"
+  },
+  {
+    "name": "Hamro Khelkud",
+    "domain": "hamrokhelkud.com",
+    "rss_url": "https://hamrokhelkud.com/feed",
+    "language": "en",
+    "category": "Sports",
+    "perspective_label": "not_independently_rated"
+  },
+  {
+    "name": "Online Khabar",
+    "domain": "onlinekhabar.com",
+    "rss_url": "https://www.onlinekhabar.com/feed",
+    "language": "ne",
+    "category": "Nepal",
+    "perspective_label": "not_independently_rated"
+  },
+  {
+    "name": "Setopati",
+    "domain": "setopati.com",
+    "rss_url": "https://www.setopati.com/feed",
+    "language": "ne",
+    "category": "Nepal",
+    "perspective_label": "not_independently_rated"
+  },
+  {
+    "name": "Ratopati",
+    "domain": "ratopati.com",
+    "rss_url": "https://www.ratopati.com/feed",
+    "language": "ne",
+    "category": "Nepal",
+    "perspective_label": "not_independently_rated"
+  },
+  {
+    "name": "Nagarik News",
+    "domain": "nagariknews.nagariknetwork.com",
+    "rss_url": "https://nagariknews.nagariknetwork.com/feed",
+    "language": "ne",
+    "category": "Nepal",
+    "perspective_label": "not_independently_rated"
+  },
+  {
+    "name": "BBC Nepali",
+    "domain": "bbc.com/nepali",
+    "rss_url": "https://feeds.bbci.co.uk/nepali/rss.xml",
+    "language": "ne",
+    "category": "Nepal",
+    "perspective_label": null,
+    "ownership_notes": "BBC World Service Nepali.",
+    "transparency_notes": "International public broadcaster Nepali service."
+  },
+  {
+    "name": "Ujyaalo Online",
+    "domain": "ujyaaloonline.com",
+    "rss_url": "https://ujyaaloonline.com/feed",
+    "language": "ne",
+    "category": "Nepal",
+    "perspective_label": "not_independently_rated"
+  },
+  {
+    "name": "Nepal Press",
+    "domain": "nepalpress.com",
+    "rss_url": "https://www.nepalpress.com/feed",
+    "language": "ne",
+    "category": "Nepal",
+    "perspective_label": "not_independently_rated"
+  },
+  {
+    "name": "Bizmandu",
+    "domain": "bizmandu.com",
+    "rss_url": "https://www.bizmandu.com/feed",
+    "language": "ne",
+    "category": "Business",
+    "perspective_label": "not_independently_rated"
+  }
+]

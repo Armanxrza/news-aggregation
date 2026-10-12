@@ -2,131 +2,166 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import {
-  Plus, Trash2, RefreshCw, Globe, Rss, Activity,
-  FileText, Layers, CheckCircle2, AlertTriangle, X,
-  ChevronRight, Loader2, ExternalLink, ShieldCheck,
+  Plus,
+  Trash2,
+  RefreshCw,
+  Globe,
+  Rss,
+  Activity,
+  FileText,
+  Layers,
+  CheckCircle2,
+  AlertTriangle,
+  X,
+  Loader2,
+  ExternalLink,
+  ShieldCheck,
+  Key,
 } from "lucide-react";
-import { API_BASE, type SourceDTO, type StatsDTO } from "@/lib/api";
-
-// ─── tiny helpers ────────────────────────────────────────────────────────────
-
-function cn(...classes: (string | false | undefined)[]) {
-  return classes.filter(Boolean).join(" ");
-}
-
-// ─── stat card ───────────────────────────────────────────────────────────────
+import {
+  API_BASE,
+  ADMIN_KEY_STORAGE,
+  createSource,
+  deleteSource,
+  fetchCrawlRuns,
+  fetchSources,
+  fetchStats,
+  getStoredAdminKey,
+  setStoredAdminKey,
+  triggerCrawl,
+  updateSource,
+  type CrawlRunDTO,
+  type SourceDTO,
+  type StatsDTO,
+} from "@/lib/api";
+import { cn, formatTimeAgo } from "@/lib/utils";
 
 function StatCard({
-  label, value, icon: Icon, accent,
-}: { label: string; value: number | string; icon: React.ElementType; accent: string }) {
+  label,
+  value,
+  icon: Icon,
+  accent,
+}: {
+  label: string;
+  value: number | string;
+  icon: React.ElementType;
+  accent: string;
+}) {
   return (
-    <div className="bg-surface border border-border rounded-xl p-5 flex items-center gap-4 shadow-sm">
-      <div className={cn("w-11 h-11 rounded-lg flex items-center justify-center shrink-0", accent)}>
+    <div className="card flex items-center gap-4 p-5">
+      <div className={cn("flex h-11 w-11 shrink-0 items-center justify-center rounded-lg", accent)}>
         <Icon size={20} className="text-white" />
       </div>
       <div>
-        <p className="text-2xl font-extrabold text-foreground leading-none">{value}</p>
-        <p className="text-xs text-foreground/50 mt-1 font-medium">{label}</p>
+        <p className="text-2xl font-extrabold leading-none tabular-nums">{value}</p>
+        <p className="mt-1 text-xs font-medium text-foreground/50">{label}</p>
       </div>
     </div>
   );
 }
 
-// ─── toast ───────────────────────────────────────────────────────────────────
-
 type ToastType = "success" | "error" | "info";
-interface ToastMsg { id: number; type: ToastType; text: string }
+interface ToastMsg {
+  id: number;
+  type: ToastType;
+  text: string;
+}
 
 function Toast({ msg, onDismiss }: { msg: ToastMsg; onDismiss: () => void }) {
   useEffect(() => {
-    const t = setTimeout(onDismiss, 4000);
+    const t = setTimeout(onDismiss, 4500);
     return () => clearTimeout(t);
   }, [onDismiss]);
-
   const colors: Record<ToastType, string> = {
-    success: "bg-emerald-500",
-    error:   "bg-red-500",
-    info:    "bg-blue-500",
+    success: "bg-emerald-600",
+    error: "bg-red-600",
+    info: "bg-teal-600",
   };
-
   return (
-    <div className={cn(
-      "flex items-center gap-3 px-4 py-3 rounded-xl text-white text-sm font-medium shadow-2xl backdrop-blur-sm",
-      colors[msg.type]
-    )}>
+    <div className={cn("flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-white shadow-lg", colors[msg.type])}>
       {msg.type === "success" ? <CheckCircle2 size={16} /> : msg.type === "error" ? <AlertTriangle size={16} /> : <Activity size={16} />}
       <span>{msg.text}</span>
-      <button onClick={onDismiss} className="ml-auto opacity-70 hover:opacity-100"><X size={14} /></button>
+      <button type="button" onClick={onDismiss} className="ml-auto opacity-80 hover:opacity-100">
+        <X size={14} />
+      </button>
     </div>
   );
 }
 
-// ─── main ────────────────────────────────────────────────────────────────────
-
 export default function AdminPanel() {
+  const [adminKey, setAdminKey] = useState("");
   const [sources, setSources] = useState<SourceDTO[]>([]);
   const [stats, setStats] = useState<StatsDTO | null>(null);
+  const [crawlRuns, setCrawlRuns] = useState<CrawlRunDTO[]>([]);
   const [toasts, setToasts] = useState<ToastMsg[]>([]);
   const [toastCounter, setToastCounter] = useState(0);
 
-  // form state
   const [name, setName] = useState("");
   const [domain, setDomain] = useState("");
   const [rss, setRss] = useState("");
   const [language, setLanguage] = useState("en");
-  const [bias, setBias] = useState("0");
 
-  // ui state
   const [formLoading, setFormLoading] = useState(false);
   const [crawlState, setCrawlState] = useState<"idle" | "running" | "done" | "error">("idle");
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  const toast = useCallback((type: ToastType, text: string) => {
-    const id = toastCounter + 1;
-    setToastCounter(id);
-    setToasts(prev => [...prev, { id, type, text }]);
-  }, [toastCounter]);
+  useEffect(() => {
+    setAdminKey(getStoredAdminKey());
+  }, []);
 
-  const dismissToast = (id: number) => setToasts(prev => prev.filter(t => t.id !== id));
+  const toast = useCallback(
+    (type: ToastType, text: string) => {
+      const id = toastCounter + 1;
+      setToastCounter(id);
+      setToasts((prev) => [...prev, { id, type, text }]);
+    },
+    [toastCounter],
+  );
 
-  // ── fetch data ──────────────────────────────────────────────────────────────
+  const dismissToast = (id: number) => setToasts((prev) => prev.filter((t) => t.id !== id));
+
   const refreshData = useCallback(async () => {
     try {
-      const [srcRes, statsRes] = await Promise.all([
-        fetch(`${API_BASE}/api/sources`),
-        fetch(`${API_BASE}/api/stats`),
+      const [src, st, runs] = await Promise.all([
+        fetchSources(),
+        fetchStats(),
+        fetchCrawlRuns(15),
       ]);
-      if (srcRes.ok) setSources(await srcRes.json());
-      if (statsRes.ok) setStats(await statsRes.json());
+      setSources(src);
+      setStats(st);
+      setCrawlRuns(runs);
     } catch {
       toast("error", "Could not connect to the backend.");
     }
   }, [toast]);
 
-  useEffect(() => { refreshData(); }, [refreshData]);
+  useEffect(() => {
+    refreshData();
+  }, [refreshData]);
 
-  // ── add source ──────────────────────────────────────────────────────────────
+  function saveAdminKey() {
+    setStoredAdminKey(adminKey);
+    toast("success", "Admin key saved to localStorage.");
+  }
+
   const handleAddSource = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/sources`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      await createSource(
+        {
           name,
           domain: domain.replace(/^https?:\/\//, "").replace(/\/$/, ""),
           rss_url: rss || null,
-          default_bias: parseFloat(bias) || 0,
           language,
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ detail: "Unknown error" }));
-        throw new Error(err.detail);
-      }
-      toast("success", `"${name}" added successfully!`);
-      setName(""); setDomain(""); setRss(""); setLanguage("en"); setBias("0");
+        },
+        adminKey,
+      );
+      toast("success", `"${name}" added.`);
+      setName("");
+      setDomain("");
+      setRss("");
+      setLanguage("en");
       refreshData();
     } catch (err: unknown) {
       toast("error", err instanceof Error ? err.message : "Failed to add source.");
@@ -135,338 +170,320 @@ export default function AdminPanel() {
     }
   };
 
-  // ── delete source ───────────────────────────────────────────────────────────
   const handleDelete = async (id: number, sourceName: string) => {
-    if (!confirm(`Remove "${sourceName}" from managed portals?`)) return;
+    if (!confirm(`Remove "${sourceName}"?`)) return;
     setDeletingId(id);
     try {
-      const res = await fetch(`${API_BASE}/api/sources/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Delete failed");
-      toast("success", `"${sourceName}" removed.`);
+      await deleteSource(id, adminKey);
+      toast("success", `"${sourceName}" removed or deactivated.`);
       refreshData();
-    } catch {
-      toast("error", "Failed to delete source.");
+    } catch (err: unknown) {
+      toast("error", err instanceof Error ? err.message : "Delete failed.");
     } finally {
       setDeletingId(null);
     }
   };
 
-  // ── trigger crawl ───────────────────────────────────────────────────────────
+  const toggleActive = async (source: SourceDTO) => {
+    try {
+      await updateSource(source.id, { is_active: !source.is_active }, adminKey);
+      toast("info", `${source.name} is now ${source.is_active ? "inactive" : "active"}.`);
+      refreshData();
+    } catch (err: unknown) {
+      toast("error", err instanceof Error ? err.message : "Update failed.");
+    }
+  };
+
   const handleCrawl = async () => {
+    if (!adminKey.trim()) {
+      toast("error", "Save an admin API key first.");
+      return;
+    }
     setCrawlState("running");
     try {
-      const res = await fetch(`${API_BASE}/api/crawl`, { method: "POST" });
-      if (!res.ok) throw new Error("Crawl failed");
+      await triggerCrawl(adminKey);
       setCrawlState("done");
-      toast("success", "Crawler triggered — fetching latest headlines in the background.");
-      // After a moment, refresh stats to show new numbers
+      toast("success", "Crawl started in background.");
       setTimeout(refreshData, 3000);
-    } catch {
+    } catch (err: unknown) {
       setCrawlState("error");
-      toast("error", "Failed to trigger crawler. Is the backend running?");
+      toast("error", err instanceof Error ? err.message : "Crawl failed.");
     } finally {
       setTimeout(() => setCrawlState("idle"), 5000);
     }
   };
 
-  // ── bias label ──────────────────────────────────────────────────────────────
-  const biasLabel = (b: number | null) => {
-    if (b === null) return "Unknown";
-    if (b < -0.3) return "Left";
-    if (b > 0.3) return "Right";
-    return "Center";
-  };
-
-  const biasColor = (b: number | null) => {
-    if (b === null) return "text-foreground/40";
-    if (b < -0.3) return "text-blue-500";
-    if (b > 0.3) return "text-red-500";
-    return "text-gray-400";
-  };
-
   return (
-    <div className="min-h-screen bg-background">
-      {/* Toast stack */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 w-80">
-        {toasts.map(msg => (
+    <div className="space-y-8 pb-12">
+      <div className="fixed bottom-6 right-6 z-50 flex w-80 flex-col gap-2">
+        {toasts.map((msg) => (
           <Toast key={msg.id} msg={msg} onDismiss={() => dismissToast(msg.id)} />
         ))}
       </div>
 
-      {/* Admin Header Bar */}
-      <div className="border-b border-border bg-surface/80 backdrop-blur-md sticky top-0 z-40">
-        <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <ShieldCheck size={18} className="text-accent" />
-            <span className="font-bold text-sm text-foreground">Admin Dashboard</span>
-            <span className="text-border">·</span>
-            <a href="/" className="text-xs text-foreground/50 hover:text-accent transition-colors flex items-center gap-1">
-              View Site <ExternalLink size={11} />
-            </a>
-          </div>
+      <header className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="font-serif text-3xl font-bold flex items-center gap-2">
+            <ShieldCheck className="text-teal-700" size={28} /> Admin
+          </h1>
+          <p className="mt-1 text-sm text-foreground/55">Sources, crawls, and diagnostics</p>
+        </div>
+        <button
+          type="button"
+          onClick={handleCrawl}
+          disabled={crawlState === "running"}
+          className={cn(
+            "flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-bold transition-colors",
+            crawlState === "running" && "cursor-not-allowed bg-teal-100 text-teal-800",
+            crawlState === "done" && "bg-emerald-100 text-emerald-800",
+            crawlState === "error" && "bg-red-100 text-red-800",
+            crawlState === "idle" && "bg-teal-700 text-white hover:bg-teal-800",
+          )}
+        >
+          {crawlState === "running" ? (
+            <>
+              <Loader2 size={15} className="animate-spin" /> Crawling…
+            </>
+          ) : (
+            <>
+              <RefreshCw size={15} /> Run crawler
+            </>
+          )}
+        </button>
+      </header>
+
+      <section className="card p-5">
+        <h2 className="flex items-center gap-2 text-sm font-bold">
+          <Key size={16} className="text-teal-700" /> Admin API key
+        </h2>
+        <p className="mt-1 text-xs text-foreground/50">
+          Stored as <code>{ADMIN_KEY_STORAGE}</code> — sent as <code>X-Admin-Key</code> on protected
+          routes.
+        </p>
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+          <input
+            type="password"
+            value={adminKey}
+            onChange={(e) => setAdminKey(e.target.value)}
+            placeholder="Backend ADMIN_API_KEY"
+            className="min-w-0 flex-1 rounded-lg border border-border-subtle px-3 py-2 text-sm"
+            autoComplete="off"
+          />
           <button
-            id="trigger-crawler-btn"
-            onClick={handleCrawl}
-            disabled={crawlState === "running"}
-            className={cn(
-              "flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold transition-all duration-200",
-              crawlState === "running" && "bg-accent/20 text-accent cursor-not-allowed",
-              crawlState === "done"    && "bg-emerald-500/20 text-emerald-500",
-              crawlState === "error"   && "bg-red-500/20 text-red-500",
-              crawlState === "idle"    && "bg-accent text-white hover:bg-accent/90 shadow-lg shadow-accent/20",
-            )}
+            type="button"
+            onClick={saveAdminKey}
+            className="rounded-lg bg-foreground px-4 py-2 text-sm font-bold text-white hover:bg-slate-800"
           >
-            {crawlState === "running" ? (
-              <><Loader2 size={15} className="animate-spin" /> Crawling…</>
-            ) : crawlState === "done" ? (
-              <><CheckCircle2 size={15} /> Done!</>
-            ) : crawlState === "error" ? (
-              <><AlertTriangle size={15} /> Failed</>
-            ) : (
-              <><RefreshCw size={15} /> Run Crawler</>
-            )}
+            Save key
           </button>
+        </div>
+      </section>
+
+      <section>
+        <h2 className="mb-4 text-xs font-bold uppercase tracking-widest text-foreground/40">
+          Live statistics
+        </h2>
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
+          <StatCard label="Stories" value={stats?.total_stories ?? "—"} icon={Layers} accent="bg-teal-600" />
+          <StatCard label="Articles" value={stats?.total_articles ?? "—"} icon={FileText} accent="bg-sky-600" />
+          <StatCard label="Sources" value={stats?.total_sources ?? "—"} icon={Globe} accent="bg-cyan-600" />
+          <StatCard label="Active" value={stats?.active_sources ?? "—"} icon={Activity} accent="bg-emerald-600" />
+          <StatCard label="Nepali" value={stats?.nepali_sources ?? "—"} icon={Rss} accent="bg-rose-600" />
+          <StatCard label="Claims" value={stats?.claims ?? "—"} icon={CheckCircle2} accent="bg-amber-600" />
+        </div>
+      </section>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[320px_1fr]">
+        <div className="card h-fit p-6">
+          <h2 className="mb-4 flex items-center gap-2 font-bold">
+            <Plus size={18} className="text-teal-700" /> Add portal
+          </h2>
+          <form onSubmit={handleAddSource} className="space-y-4">
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase text-foreground/50">
+                Name *
+              </label>
+              <input
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full rounded-lg border border-border-subtle px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase text-foreground/50">
+                Domain *
+              </label>
+              <input
+                required
+                value={domain}
+                onChange={(e) => setDomain(e.target.value)}
+                placeholder="onlinekhabar.com"
+                className="w-full rounded-lg border border-border-subtle px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase text-foreground/50">
+                RSS URL
+              </label>
+              <input
+                type="url"
+                value={rss}
+                onChange={(e) => setRss(e.target.value)}
+                className="w-full rounded-lg border border-border-subtle px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-semibold uppercase text-foreground/50">
+                Language
+              </label>
+              <select
+                value={language}
+                onChange={(e) => setLanguage(e.target.value)}
+                className="w-full rounded-lg border border-border-subtle px-3 py-2 text-sm"
+              >
+                <option value="en">English</option>
+                <option value="ne">Nepali</option>
+                <option value="hi">Hindi</option>
+              </select>
+            </div>
+            <button
+              type="submit"
+              disabled={formLoading}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-teal-700 py-2.5 text-sm font-bold text-white hover:bg-teal-800 disabled:opacity-50"
+            >
+              {formLoading ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+              Save portal
+            </button>
+          </form>
+        </div>
+
+        <div className="card overflow-hidden">
+          <div className="flex items-center justify-between border-b border-border-subtle px-5 py-4">
+            <h2 className="flex items-center gap-2 font-bold">
+              <Globe size={18} className="text-teal-700" /> Portals ({sources.length})
+            </h2>
+            <button type="button" onClick={refreshData} className="text-foreground/40 hover:text-teal-700">
+              <RefreshCw size={14} />
+            </button>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px] text-left text-sm">
+              <thead className="bg-surface-hover text-xs uppercase text-foreground/45">
+                <tr>
+                  <th className="px-5 py-3">Portal</th>
+                  <th className="px-3 py-3">Lang</th>
+                  <th className="px-3 py-3">Type</th>
+                  <th className="px-3 py-3">Status</th>
+                  <th className="px-3 py-3 w-20" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border-subtle">
+                {sources.map((s) => (
+                  <tr key={s.id} className="group hover:bg-surface-hover/50">
+                    <td className="px-5 py-3">
+                      <div className="font-semibold">{s.name}</div>
+                      <a
+                        href={`https://${s.domain}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs text-foreground/45 hover:text-teal-700"
+                      >
+                        {s.domain}
+                      </a>
+                    </td>
+                    <td className="px-3 py-3 text-xs font-bold uppercase">{s.language}</td>
+                    <td className="px-3 py-3">
+                      {s.rss_url ? (
+                        <span className="text-xs font-semibold text-teal-700">RSS</span>
+                      ) : (
+                        <span className="text-xs text-foreground/45">Scrape</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-3">
+                      <button
+                        type="button"
+                        onClick={() => toggleActive(s)}
+                        className={cn(
+                          "text-xs font-semibold underline-offset-2 hover:underline",
+                          s.is_active ? "text-emerald-700" : "text-foreground/40",
+                        )}
+                      >
+                        {s.is_active ? "Active" : "Inactive"}
+                      </button>
+                    </td>
+                    <td className="px-3 py-3">
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(s.id, s.name)}
+                        disabled={deletingId === s.id}
+                        className="opacity-0 group-hover:opacity-100 text-foreground/30 hover:text-red-600 disabled:opacity-50"
+                      >
+                        {deletingId === s.id ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : (
+                          <Trash2 size={14} />
+                        )}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 py-8 space-y-8">
-        {/* Stats Row */}
-        <section>
-          <h2 className="text-xs font-bold uppercase tracking-widest text-foreground/40 mb-4">Live Statistics</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-            <StatCard label="Stories" value={stats?.total_stories ?? "—"} icon={Layers} accent="bg-violet-500" />
-            <StatCard label="Articles" value={stats?.total_articles ?? "—"} icon={FileText} accent="bg-blue-500" />
-            <StatCard label="Sources" value={stats?.total_sources ?? "—"} icon={Globe} accent="bg-cyan-500" />
-            <StatCard label="Active" value={stats?.active_sources ?? "—"} icon={Activity} accent="bg-emerald-500" />
-            <StatCard label="Nepali" value={stats?.nepali_sources ?? "—"} icon={Rss} accent="bg-red-500" />
-          </div>
-        </section>
-
-        {/* Main Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6">
-          {/* Add Source Form */}
-          <div className="bg-surface border border-border rounded-2xl p-6 h-fit shadow-sm">
-            <h2 className="text-base font-bold mb-5 flex items-center gap-2 text-foreground">
-              <Plus size={18} className="text-accent" /> Add News Portal
-            </h2>
-            <form onSubmit={handleAddSource} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold mb-1.5 text-foreground/60 uppercase tracking-wider">Portal Name *</label>
-                <input
-                  type="text" required value={name}
-                  onChange={e => setName(e.target.value)}
-                  placeholder="e.g. Online Khabar"
-                  className="w-full px-3.5 py-2.5 border border-border rounded-lg bg-background text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold mb-1.5 text-foreground/60 uppercase tracking-wider">Domain *</label>
-                <input
-                  type="text" required value={domain}
-                  onChange={e => setDomain(e.target.value)}
-                  placeholder="e.g. onlinekhabar.com"
-                  className="w-full px-3.5 py-2.5 border border-border rounded-lg bg-background text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold mb-1.5 text-foreground/60 uppercase tracking-wider">RSS Feed URL</label>
-                <input
-                  type="url" value={rss}
-                  onChange={e => setRss(e.target.value)}
-                  placeholder="https://example.com/feed"
-                  className="w-full px-3.5 py-2.5 border border-border rounded-lg bg-background text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-colors"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold mb-1.5 text-foreground/60 uppercase tracking-wider">Language</label>
-                  <select
-                    value={language} onChange={e => setLanguage(e.target.value)}
-                    className="w-full px-3 py-2.5 border border-border rounded-lg bg-background text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-colors"
-                  >
-                    <option value="en">English</option>
-                    <option value="ne">Nepali (नेपाली)</option>
-                    <option value="hi">Hindi</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold mb-1.5 text-foreground/60 uppercase tracking-wider">Bias</label>
-                  <select
-                    value={bias} onChange={e => setBias(e.target.value)}
-                    className="w-full px-3 py-2.5 border border-border rounded-lg bg-background text-sm focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-colors"
-                  >
-                    <option value="-0.7">Far Left</option>
-                    <option value="-0.4">Left</option>
-                    <option value="0">Center</option>
-                    <option value="0.4">Right</option>
-                    <option value="0.7">Far Right</option>
-                  </select>
-                </div>
-              </div>
-              <button
-                type="submit" disabled={formLoading}
-                className="w-full bg-accent text-white py-2.5 rounded-lg font-bold text-sm hover:bg-accent/90 transition-all shadow-lg shadow-accent/20 disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {formLoading ? <><Loader2 size={14} className="animate-spin" /> Adding…</> : <><Plus size={14} /> Save Portal</>}
-              </button>
-            </form>
-          </div>
-
-          {/* Source Table */}
-          <div className="bg-surface border border-border rounded-2xl shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-border flex items-center justify-between">
-              <h2 className="text-base font-bold flex items-center gap-2 text-foreground">
-                <Globe size={18} className="text-accent" />
-                Managed Portals
-                <span className="ml-1 text-xs font-semibold bg-accent/10 text-accent px-2 py-0.5 rounded-full">
-                  {sources.length}
-                </span>
-              </h2>
-              <button onClick={refreshData} className="text-foreground/40 hover:text-accent transition-colors p-1">
-                <RefreshCw size={14} />
-              </button>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="bg-background/60 text-foreground/40 text-xs uppercase tracking-wider">
-                    <th className="px-6 py-3 font-semibold">Portal</th>
-                    <th className="px-4 py-3 font-semibold">Language</th>
-                    <th className="px-4 py-3 font-semibold">Bias</th>
-                    <th className="px-4 py-3 font-semibold">Crawl Type</th>
-                    <th className="px-4 py-3 font-semibold">Status</th>
-                    <th className="px-4 py-3 font-semibold w-10" />
+      <section className="card overflow-hidden">
+        <div className="border-b border-border-subtle px-5 py-4">
+          <h2 className="font-bold">Recent crawl runs</h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[640px] text-left text-sm">
+            <thead className="bg-surface-hover text-xs uppercase text-foreground/45">
+              <tr>
+                <th className="px-5 py-3">Started</th>
+                <th className="px-3 py-3">Status</th>
+                <th className="px-3 py-3">New articles</th>
+                <th className="px-3 py-3">Feeds OK / fail</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border-subtle">
+              {crawlRuns.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-5 py-8 text-center text-foreground/45">
+                    No crawl runs recorded.
+                  </td>
+                </tr>
+              ) : (
+                crawlRuns.map((r) => (
+                  <tr key={r.id}>
+                    <td className="px-5 py-3 text-xs">
+                      {r.started_at ? formatTimeAgo(r.started_at) : "—"}
+                    </td>
+                    <td className="px-3 py-3 font-semibold">{r.status ?? "—"}</td>
+                    <td className="px-3 py-3 tabular-nums">{r.articles_new ?? 0}</td>
+                    <td className="px-3 py-3 tabular-nums text-xs">
+                      {r.feeds_succeeded ?? 0} / {r.feeds_failed ?? 0} failed
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {sources.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="px-6 py-12 text-center text-foreground/40 text-sm">
-                        No portals added yet.
-                      </td>
-                    </tr>
-                  ) : (
-                    sources.map(s => (
-                      <tr key={s.id} className="hover:bg-background/40 transition-colors group">
-                        <td className="px-6 py-4">
-                          <div className="font-semibold text-foreground">{s.name}</div>
-                          <div className="text-xs text-foreground/40 flex items-center gap-1 mt-0.5">
-                            <a
-                              href={`https://${s.domain}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="hover:text-accent transition-colors flex items-center gap-0.5"
-                            >
-                              {s.domain} <ExternalLink size={10} />
-                            </a>
-                          </div>
-                        </td>
-                        <td className="px-4 py-4">
-                          <span className={cn(
-                            "inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full",
-                            s.language === "ne"
-                              ? "bg-red-500/10 text-red-500"
-                              : s.language === "hi"
-                              ? "bg-orange-500/10 text-orange-500"
-                              : "bg-blue-500/10 text-blue-500"
-                          )}>
-                            {s.language === "ne" ? "🇳🇵 NE" : s.language === "hi" ? "🇮🇳 HI" : "🌐 EN"}
-                          </span>
-                        </td>
-                        <td className={cn("px-4 py-4 text-xs font-semibold", biasColor(s.default_bias))}>
-                          {biasLabel(s.default_bias)}
-                        </td>
-                        <td className="px-4 py-4">
-                          {s.rss_url ? (
-                            <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-accent/10 text-accent">
-                              <Rss size={10} /> RSS
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-orange-500/10 text-orange-500">
-                              <Globe size={10} /> Scrape
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-4">
-                          <span className={cn(
-                            "inline-flex items-center gap-1.5 text-xs font-semibold",
-                            s.is_active ? "text-emerald-500" : "text-foreground/30"
-                          )}>
-                            <span className={cn("w-1.5 h-1.5 rounded-full", s.is_active ? "bg-emerald-500 animate-pulse" : "bg-foreground/30")} />
-                            {s.is_active ? "Active" : "Inactive"}
-                          </span>
-                        </td>
-                        <td className="px-4 py-4">
-                          <button
-                            onClick={() => handleDelete(s.id, s.name)}
-                            disabled={deletingId === s.id}
-                            className="opacity-0 group-hover:opacity-100 text-foreground/30 hover:text-red-500 transition-all disabled:opacity-50 p-1 rounded"
-                          >
-                            {deletingId === s.id
-                              ? <Loader2 size={14} className="animate-spin" />
-                              : <Trash2 size={14} />
-                            }
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* RSS URL preview strip */}
-            {sources.filter(s => s.rss_url).length > 0 && (
-              <div className="border-t border-border px-6 py-4">
-                <p className="text-xs font-semibold text-foreground/40 uppercase tracking-wider mb-3">RSS Endpoints</p>
-                <div className="space-y-2">
-                  {sources.filter(s => s.rss_url).map(s => (
-                    <a
-                      key={s.id}
-                      href={s.rss_url!}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-xs text-foreground/50 hover:text-accent transition-colors group/link"
-                    >
-                      <Rss size={10} className="shrink-0 text-accent/60" />
-                      <span className="font-medium text-foreground/70 shrink-0">{s.name}</span>
-                      <ChevronRight size={10} className="text-border" />
-                      <span className="truncate group-hover/link:text-accent">{s.rss_url}</span>
-                      <ExternalLink size={10} className="shrink-0 opacity-0 group-hover/link:opacity-100" />
-                    </a>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
+      </section>
 
-        {/* Quick actions footer */}
-        <div className="bg-surface border border-border rounded-2xl p-5 flex flex-wrap items-center gap-4">
-          <div>
-            <p className="text-sm font-bold text-foreground">Quick Actions</p>
-            <p className="text-xs text-foreground/50 mt-0.5">Common backend operations</p>
-          </div>
-          <div className="flex flex-wrap gap-3 ml-auto">
-            <a
-              href={`${API_BASE}/docs`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg text-sm font-semibold text-foreground/70 hover:border-accent hover:text-accent transition-colors"
-            >
-              <FileText size={14} /> API Docs <ExternalLink size={11} />
-            </a>
-            <button
-              onClick={handleCrawl}
-              disabled={crawlState === "running"}
-              className="flex items-center gap-2 px-4 py-2 bg-accent/10 border border-accent/30 rounded-lg text-sm font-semibold text-accent hover:bg-accent/20 transition-colors disabled:opacity-50"
-            >
-              <RefreshCw size={14} className={crawlState === "running" ? "animate-spin" : ""} />
-              {crawlState === "running" ? "Crawling…" : "Re-Run Crawler"}
-            </button>
-          </div>
-        </div>
+      <div className="card flex flex-wrap items-center gap-4 p-5">
+        <p className="text-sm font-bold">API</p>
+        <a
+          href={`${API_BASE}/docs`}
+          target="_blank"
+          rel="noreferrer"
+          className="ml-auto flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold hover:border-teal-600 hover:text-teal-800"
+        >
+          OpenAPI docs <ExternalLink size={12} />
+        </a>
       </div>
     </div>
   );

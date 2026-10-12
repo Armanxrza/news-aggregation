@@ -1,0 +1,11 @@
+{
+  "name": "sajhanews",
+  "private": true,
+  "scripts": {
+    "seed": "cd backend && venv\\Scripts\\python.exe -m scripts.seed",
+    "api": "cd backend && venv\\Scripts\\uvicorn.exe main:app --reload --host 127.0.0.1 --port 8001",
+    "web": "cd frontend && npm run dev",
+    "test": "cd backend && venv\\Scripts\\python.exe -m pytest tests -q",
+    "crawl": "cd backend && venv\\Scripts\\python.exe -c \"import crawler; crawler.crawl_rss()\""
+  }
+}

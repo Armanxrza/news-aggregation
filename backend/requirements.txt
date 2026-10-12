@@ -1,8 +1,23 @@
-fastapi
-uvicorn[standard]
-feedparser
-requests
-sqlalchemy
-python-dotenv
-pymysql
-a2wsgi
+fastapi>=0.110
+uvicorn[standard]>=0.27
+feedparser>=6.0
+requests>=2.31
+sqlalchemy>=2.0
+python-dotenv>=1.0
+pymysql>=1.1
+a2wsgi>=1.10
+pydantic>=2.0
+python-multipart>=0.0.9
+numpy>=1.26
+scikit-learn>=1.4
+httpx>=0.27
+psycopg2-binary>=2.9.9
+pytest>=8.0
+
+# Optional heavy ML packages (install requirements-ml.txt if you have >=2GB RAM or GPU).
+# Omitted here so Render Free Tier (512MB RAM) builds in seconds and never crashes with OOM.
+# transformers>=4.45,<5
+# torch>=2.2
+# sentence-transformers>=3.0
+# datasets>=2.18
+# accelerate>=0.28

@@ -1,0 +1,235 @@
+{
+  "parties": [
+    [
+      "Nepali Congress",
+      [
+        "nepali congress",
+        "कांग्रेस",
+        "nepalee congress",
+        "nc "
+      ]
+    ],
+    [
+      "CPN-UML",
+      [
+        "cpn-uml",
+        "uml",
+        "एमाले",
+        "cpn uml"
+      ]
+    ],
+    [
+      "CPN (Maoist Centre)",
+      [
+        "maoist",
+        "माओवादी",
+        "cpn-mc",
+        "cpn mc"
+      ]
+    ],
+    [
+      "Rashtriya Swatantra Party",
+      [
+        "rsp",
+        "राष्ट्रिय स्वतन्त्र",
+        "rabi lamichhane"
+      ]
+    ],
+    [
+      "RPP",
+      [
+        "rpp",
+        "राप्रपा",
+        "rastriya prajatantra"
+      ]
+    ],
+    [
+      "Janata Samajwadi Party",
+      [
+        "jsp",
+        "जनता समाजवादी"
+      ]
+    ]
+  ],
+  "institutions": [
+    [
+      "Government of Nepal",
+      [
+        "government of nepal",
+        "नेपाल सरकार",
+        "cabinet",
+        "मन्त्रिपरिषद्"
+      ]
+    ],
+    [
+      "Federal Parliament",
+      [
+        "parliament",
+        "संसद",
+        "house of representatives",
+        "प्रतिनिधि सभा",
+        "national assembly"
+      ]
+    ],
+    [
+      "Election Commission",
+      [
+        "election commission",
+        "निर्वाचन आयोग"
+      ]
+    ],
+    [
+      "Supreme Court",
+      [
+        "supreme court",
+        "सर्वोच्च अदालत"
+      ]
+    ],
+    [
+      "Nepal Rastra Bank",
+      [
+        "nepal rastra bank",
+        "नेपाल राष्ट्र बैंक",
+        "nrb"
+      ]
+    ],
+    [
+      "CIAA",
+      [
+        "ciaa",
+        "अख्तियार"
+      ]
+    ]
+  ],
+  "places": [
+    [
+      "Kathmandu",
+      [
+        "kathmandu",
+        "काठमाडौं",
+        "काठमाण्डौ"
+      ]
+    ],
+    [
+      "Pokhara",
+      [
+        "pokhara",
+        "पोखरा"
+      ]
+    ],
+    [
+      "Lalitpur",
+      [
+        "lalitpur",
+        "ललितपुर",
+        "patan"
+      ]
+    ],
+    [
+      "Bhaktapur",
+      [
+        "bhaktapur",
+        "भक्तपुर"
+      ]
+    ],
+    [
+      "Biratnagar",
+      [
+        "biratnagar",
+        "विराटनगर"
+      ]
+    ],
+    [
+      "Province 1 / Koshi",
+      [
+        "koshi",
+        "कोशी",
+        "province 1"
+      ]
+    ],
+    [
+      "Madhesh",
+      [
+        "madhesh",
+        "मधेश",
+        "province 2"
+      ]
+    ],
+    [
+      "Bagmati",
+      [
+        "bagmati",
+        "बागमती"
+      ]
+    ],
+    [
+      "Gandaki",
+      [
+        "gandaki",
+        "गण्डकी"
+      ]
+    ],
+    [
+      "Lumbini",
+      [
+        "lumbini",
+        "लुम्बिनी"
+      ]
+    ],
+    [
+      "Karnali",
+      [
+        "karnali",
+        "कर्णाली"
+      ]
+    ],
+    [
+      "Sudurpashchim",
+      [
+        "sudurpashchim",
+        "सुदूरपश्चिम",
+        "far-west"
+      ]
+    ]
+  ],
+  "people": [
+    [
+      "KP Sharma Oli",
+      [
+        "kp oli",
+        "केपी शर्मा ओली",
+        "oli"
+      ]
+    ],
+    [
+      "Sher Bahadur Deuba",
+      [
+        "deuba",
+        "शेरबहादुर देउवा"
+      ]
+    ],
+    [
+      "Pushpa Kamal Dahal",
+      [
+        "dahal",
+        "prachanda",
+        "प्रचण्ड",
+        "पुष्पकमल"
+      ]
+    ],
+    [
+      "Balen Shah",
+      [
+        "balen",
+        "बालेन"
+      ]
+    ],
+    [
+      "Rabi Lamichhane",
+      [
+        "rabi lamichhane",
+        "रवि लामिछाने"
+      ]
+    ]
+  ]
+}

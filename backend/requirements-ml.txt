@@ -1,0 +1,8 @@
+# Optional ML dependencies for local GPU/high-memory servers
+# Not recommended for Render Free Tier (512MB RAM limit)
+-r requirements.txt
+transformers>=4.45,<5
+torch>=2.2
+sentence-transformers>=3.0
+datasets>=2.18
+accelerate>=0.28
