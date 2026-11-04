@@ -1,29 +1,44 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: #eef2f5;
-  --color-foreground: #0f172a;
-  --color-primary: #134e4a;
-  --color-primary-foreground: #ffffff;
-  --color-accent: #0f766e;
-  --color-accent-hover: #0d9488;
-  --color-surface: #ffffff;
-  --color-surface-hover: #f1f5f9;
-  --color-surface-muted: #e2e8f0;
-  --color-border: #cbd5e1;
-  --color-border-subtle: #e2e8f0;
-  --font-sans: var(--font-dm-sans), system-ui, sans-serif;
+  --color-background: #f4f1ea;
+  --color-foreground: #1c1917;
+  --color-primary: #1c1917;
+  --color-primary-foreground: #f4f1ea;
+  --color-accent: #8c1d1d;
+  --color-accent-foreground: #f4f1ea;
+  --color-surface: #fffcf7;
+  --color-surface-hover: #f4f1ea;
+  --color-surface-muted: #f4f1ea;
+  --color-border: rgb(28 25 23 / 0.16);
+  --color-border-subtle: rgb(28 25 23 / 0.1);
+  --font-sans: var(--font-source-sans), system-ui, sans-serif;
   --font-serif: var(--font-source-serif), Georgia, "Times New Roman", serif;
+  --radius-xs: 2px;
+  --radius-sm: 2px;
+  --radius-md: 2px;
+  --radius-lg: 2px;
+  --radius-xl: 2px;
+  --radius-2xl: 2px;
+  --radius-3xl: 2px;
+  --radius-4xl: 2px;
+  --shadow-2xs: 0 0 #0000;
+  --shadow-xs: 0 0 #0000;
+  --shadow-sm: 0 0 #0000;
+  --shadow-md: 0 0 #0000;
+  --shadow-lg: 0 0 #0000;
+  --shadow-xl: 0 0 #0000;
+  --shadow-2xl: 0 0 #0000;
 }
 
 :root {
-  --background: #eef2f5;
-  --foreground: #0f172a;
-  --surface: #ffffff;
-  --surface-hover: #f1f5f9;
-  --surface-muted: #e2e8f0;
-  --border: #cbd5e1;
-  --border-subtle: #e2e8f0;
+  --background: #f4f1ea;
+  --foreground: #1c1917;
+  --surface: #fffcf7;
+  --surface-hover: #f4f1ea;
+  --surface-muted: #f4f1ea;
+  --border: rgb(28 25 23 / 0.16);
+  --border-subtle: rgb(28 25 23 / 0.1);
 }
 
 body {
@@ -32,13 +47,6 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
-}
-
-.atmosphere {
-  background-color: #eef2f5;
-  background-image:
-    radial-gradient(ellipse 80% 45% at 0% 0%, rgba(15, 118, 110, 0.09), transparent 55%),
-    radial-gradient(ellipse 50% 35% at 100% 0%, rgba(30, 58, 138, 0.06), transparent 50%);
 }
 
 a {
@@ -50,14 +58,19 @@ a {
   -webkit-tap-highlight-color: transparent;
 }
 
+:focus-visible {
+  outline: 1px solid #1c1917;
+  outline-offset: 2px;
+}
+
 .font-serif {
   font-family: var(--font-serif);
 }
 
 .card {
   background: var(--surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 2px;
 }
 
 ::-webkit-scrollbar {
@@ -66,8 +79,13 @@ a {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #94a3b8;
-  border-radius: 4px;
+  background: rgb(28 25 23 / 0.28);
+  border-radius: 2px;
+}
+
+::selection {
+  background: #1c1917;
+  color: #f4f1ea;
 }
 
 @media (prefers-reduced-motion: reduce) {

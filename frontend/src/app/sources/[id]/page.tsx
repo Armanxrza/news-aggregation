@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ExternalLink, Rss } from "@/components/icons";
 import { fetchSourceDetail } from "@/lib/api";
 import { framingLabel, perspectiveLabel } from "@/lib/framing";
 import { SourceFramingHistory } from "@/components/SourceFramingHistory";
@@ -24,59 +23,52 @@ export default async function SourceDetailPage({
 
   return (
     <div className="space-y-8">
-      <Link
-        href="/sources"
-        className="inline-flex items-center gap-2 text-sm font-semibold text-foreground/60 hover:text-teal-800"
-      >
-        <ArrowLeft size={16} /> All sources
+      <Link href="/sources" className="text-sm text-foreground/60 hover:text-foreground">
+        ← All sources
       </Link>
 
-      <header className="card space-y-4 p-6">
+      <header className="space-y-5 border border-border bg-surface p-5 sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="font-serif text-3xl font-bold">{source.name}</h1>
+            <h1 className="font-serif text-3xl font-semibold">{source.name}</h1>
             <a
               href={`https://${source.domain}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-1 inline-flex items-center gap-1 text-sm text-teal-700 hover:underline"
+              className="mt-1 inline-block text-sm underline decoration-foreground/30 underline-offset-2 hover:decoration-foreground"
             >
-              {source.domain} <ExternalLink size={14} />
+              {source.domain}
             </a>
           </div>
-          <span
-            className={`rounded-full px-3 py-1 text-xs font-bold ${
-              source.is_active ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"
-            }`}
-          >
+          <span className={`text-xs uppercase tracking-wide ${source.is_active ? "text-foreground" : "text-foreground/45"}`}>
             {source.is_active ? "Active" : "Inactive"}
           </span>
         </div>
 
-        <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 text-sm">
+        <dl className="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
           <div>
-            <dt className="text-xs font-bold uppercase text-foreground/45">Language</dt>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-foreground/45">Language</dt>
             <dd className="mt-1 font-semibold">{source.language?.toUpperCase() ?? "—"}</dd>
           </div>
           <div>
-            <dt className="text-xs font-bold uppercase text-foreground/45">Perspective</dt>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-foreground/45">Perspective</dt>
             <dd className="mt-1">{perspectiveLabel(source.perspective_label)}</dd>
           </div>
           <div>
-            <dt className="text-xs font-bold uppercase text-foreground/45">Articles crawled</dt>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-foreground/45">Articles crawled</dt>
             <dd className="mt-1 font-semibold tabular-nums">{source.article_count}</dd>
           </div>
           <div>
-            <dt className="text-xs font-bold uppercase text-foreground/45">Last crawl</dt>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-foreground/45">Last crawl</dt>
             <dd className="mt-1">
               {source.last_crawl_at ? formatTimeAgo(source.last_crawl_at) : "—"}
               {source.last_crawl_status && (
-                <span className="text-foreground/45"> ({source.last_crawl_status})</span>
+                <span className="text-foreground/50"> ({source.last_crawl_status})</span>
               )}
             </dd>
           </div>
           <div className="sm:col-span-2">
-            <dt className="text-xs font-bold uppercase text-foreground/45">Framing history</dt>
+            <dt className="text-xs font-semibold uppercase tracking-wide text-foreground/45">Framing history</dt>
             <dd className="mt-2">
               <SourceFramingHistory history={source.framing_history} />
             </dd>
@@ -84,35 +76,35 @@ export default async function SourceDetailPage({
         </dl>
 
         {source.rss_url && (
-          <p className="flex items-center gap-2 text-xs text-foreground/55">
-            <Rss size={14} className="text-teal-700" />
-            <a href={source.rss_url} target="_blank" rel="noreferrer" className="truncate hover:text-teal-700">
+          <p className="text-xs text-foreground/55">
+            RSS{" "}
+            <a href={source.rss_url} target="_blank" rel="noreferrer" className="underline decoration-foreground/30 underline-offset-2 hover:text-foreground">
               {source.rss_url}
             </a>
           </p>
         )}
 
         {source.ownership_notes && (
-          <div className="border-t border-border-subtle pt-4 text-sm text-foreground/65">
-            <p className="text-xs font-bold uppercase text-foreground/45">Ownership notes</p>
+          <div className="border-t border-border pt-4 text-sm text-foreground/70">
+            <p className="text-xs font-semibold uppercase tracking-wide text-foreground/45">Ownership notes</p>
             <p className="mt-1">{source.ownership_notes}</p>
           </div>
         )}
       </header>
 
       <section>
-        <h2 className="mb-4 font-serif text-xl font-bold">Recent articles</h2>
+        <h2 className="mb-4 font-serif text-xl font-semibold">Recent articles</h2>
         {source.recent_articles.length === 0 ? (
           <p className="text-sm text-foreground/55">No articles indexed yet.</p>
         ) : (
-          <ul className="divide-y divide-border-subtle rounded-xl border border-border-subtle bg-white">
+          <ul className="divide-y divide-border border border-border bg-surface">
             {source.recent_articles.map((a) => (
-              <li key={a.id} className="p-4 hover:bg-surface-hover/40">
+              <li key={a.id} className="p-4 hover:bg-background">
                 <a
                   href={a.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-semibold leading-snug hover:text-teal-800"
+                  className="font-semibold leading-snug underline decoration-transparent underline-offset-2 hover:decoration-foreground/40"
                 >
                   {a.original_headline}
                 </a>
@@ -120,7 +112,7 @@ export default async function SourceDetailPage({
                   {a.published_at ? formatTimeAgo(a.published_at) : "—"} ·{" "}
                   {framingLabel(a.government_framing)}
                 </p>
-                {a.snippet && <p className="mt-2 text-sm text-foreground/60 line-clamp-2">{a.snippet}</p>}
+                {a.snippet && <p className="mt-2 line-clamp-2 text-sm text-foreground/65">{a.snippet}</p>}
               </li>
             ))}
           </ul>

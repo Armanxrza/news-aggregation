@@ -51,37 +51,38 @@ export default async function BiasExplorerPage() {
   return (
     <div className="space-y-10">
       <header className="space-y-3">
-        <h1 className="font-serif text-3xl font-bold">Bias explorer</h1>
-        <p className="max-w-3xl text-sm leading-relaxed text-foreground/65">
-          SajhaNews does <strong className="font-semibold text-foreground">not</strong> assign
-          left–right publisher scores. Instead we report (1) government framing on each article,
-          (2) optional loaded-language signals when the model extracts them, and (3) registry
-          perspective labels that default to &ldquo;not independently rated.&rdquo;
+        <h1 className="font-serif text-3xl font-semibold">Framing</h1>
+        <p className="max-w-3xl text-sm leading-relaxed text-foreground/70">
+          Government framing is a three-way division — critical, neutral, or supportive — from a
+          desk text classifier blended with quoted wording. It does not understand every article,
+          and it is not a Nepal-wide trained political oracle.
         </p>
       </header>
 
       {error ? (
-        <p className="card p-6 text-sm text-red-700">Could not load bias explorer data.</p>
+        <p className="text-sm text-accent">Could not load framing data.</p>
       ) : (
         <>
-          <section className="card space-y-3 p-6 text-sm leading-relaxed text-foreground/70">
-            <h2 className="font-serif text-lg font-bold text-foreground">Methodology</h2>
+          <section className="space-y-3 border border-border bg-surface p-5 text-sm leading-relaxed text-foreground/75">
+            <h2 className="font-serif text-lg font-semibold text-foreground">Methodology</h2>
             <ol className="list-decimal space-y-2 pl-5">
               <li>
-                Articles are clustered into stories by headline similarity — see cluster method on
-                each story page.
+                Articles are clustered into stories by headline similarity.
               </li>
               <li>
-                Government framing classifies tone toward the Nepali government (critical, neutral,
-                supportive, or insufficient evidence).
+                Government framing is a three-way division (critical, neutral, supportive). A desk
+                text classifier is blended with quoted wording from the article. When the text is
+                too thin, the article stays unclassified or is marked insufficient evidence.
               </li>
               <li>
-                Ideological bias bars (left/center/right) are deliberately disabled — we do not
-                show percentages without a documented, independent rating source.
+                Loaded-language signals appear only when that article record already contains them.
               </li>
               <li>
-                Coverage gaps list outlets in our registry without an article in a cluster; this is
-                not proof of editorial omission.
+                Registry perspective labels default to &ldquo;not independently rated.&rdquo;
+              </li>
+              <li>
+                A coverage gap means an outlet in the registry has no article in that cluster. It
+                is not proof the outlet omitted the story.
               </li>
             </ol>
           </section>
@@ -89,9 +90,9 @@ export default async function BiasExplorerPage() {
           {distribution && <GlobalFramingDistribution distribution={distribution} />}
 
           {analytics && (
-            <section className="card p-5">
-              <h2 className="font-serif text-lg font-bold">Corpus snapshot</h2>
-              <p className="mt-2 text-sm text-foreground/60">
+            <section className="border border-border bg-surface p-5">
+              <h2 className="font-serif text-lg font-semibold">Corpus snapshot</h2>
+              <p className="mt-2 text-sm text-foreground/65">
                 {analytics.sources_active} active publishers indexed · framing counts reflect{" "}
                 {Object.values(analytics.framing).reduce((a, b) => a + b, 0)} labeled article
                 buckets (some articles may appear in aggregate totals).
@@ -100,23 +101,25 @@ export default async function BiasExplorerPage() {
           )}
 
           <section className="space-y-4">
-            <h2 className="font-serif text-lg font-bold">Loaded-language signals (samples)</h2>
+            <h2 className="font-serif text-lg font-semibold">Loaded-language signals (samples)</h2>
             <p className="text-sm text-foreground/55">
               Pulled from real article <code className="text-xs">signals</code> JSON when present —
               not invented scores.
             </p>
             {signalSamples.length === 0 ? (
-              <p className="text-sm text-foreground/50">
+              <p className="text-sm text-foreground/55">
                 No signal payloads in recent multi-source stories yet. Run framing analysis from
                 Admin after crawl.
               </p>
             ) : (
               <ul className="grid gap-3 lg:grid-cols-2">
                 {signalSamples.map((s, i) => (
-                  <li key={`${s.source}-${i}`} className="card p-4 text-sm">
-                    <p className="text-xs font-bold text-teal-800">{s.source}</p>
+                  <li key={`${s.source}-${i}`} className="border border-border bg-surface p-4 text-sm">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-foreground/55">
+                      {s.source}
+                    </p>
                     <p className="mt-1 font-medium leading-snug">{s.headline}</p>
-                    <pre className="mt-2 max-h-32 overflow-auto rounded bg-surface-hover p-2 text-[11px] text-foreground/55">
+                    <pre className="mt-2 max-h-32 overflow-auto border border-border bg-background p-2 font-sans text-[11px] text-foreground/60">
                       {JSON.stringify(s.signals, null, 2)}
                     </pre>
                   </li>
@@ -126,15 +129,18 @@ export default async function BiasExplorerPage() {
           </section>
 
           <section className="space-y-3">
-            <h2 className="font-serif text-lg font-bold">Explore stories</h2>
+            <h2 className="font-serif text-lg font-semibold">Explore stories</h2>
             <ul className="space-y-2">
               {sampleStories.map((s) => (
                 <li key={s.id} className="flex flex-wrap items-baseline gap-2 text-sm">
-                  <Link href={`/story/${s.id}`} className="font-semibold text-teal-800 hover:underline">
+                  <Link
+                    href={`/story/${s.id}`}
+                    className="font-semibold underline decoration-foreground/25 underline-offset-2 hover:decoration-foreground"
+                  >
                     {s.ai_headline}
                   </Link>
-                  <span className="text-xs text-foreground/45">
-                    {s.source_count} sources · dominant framing from article counts
+                  <span className="text-xs text-foreground/50">
+                    {s.source_count} sources
                   </span>
                 </li>
               ))}

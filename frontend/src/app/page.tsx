@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Search } from "@/components/icons";
 import { StoryCard } from "@/components/StoryCard";
 import { RefreshFeedButton } from "@/components/RefreshFeedButton";
 import { fetchStories } from "@/lib/api";
@@ -43,8 +42,8 @@ export default async function Home({
   }
 
   return (
-    <div className="space-y-5 py-2">
-      <div className="flex flex-wrap items-center gap-3">
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-end gap-4 border-b border-foreground/15 pb-4">
         <form action="/" method="get" className="flex min-w-0 flex-1 gap-2 sm:max-w-md">
           {topic && <input type="hidden" name="topic" value={topic} />}
           {lang && <input type="hidden" name="lang" value={lang} />}
@@ -52,14 +51,13 @@ export default async function Home({
             name="search"
             defaultValue={search}
             placeholder="Search stories"
-            className="min-w-0 flex-1 rounded-full border border-border-subtle bg-white px-4 py-2 text-sm shadow-sm outline-none focus:border-teal-600"
+            className="min-w-0 flex-1 border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-foreground"
           />
           <button
             type="submit"
-            aria-label="Search"
-            className="rounded-full bg-[#1a2e35] p-2.5 text-white hover:bg-[#243b44]"
+            className="shrink-0 border border-foreground bg-foreground px-3 py-2 text-sm text-background"
           >
-            <Search size={16} />
+            Search
           </button>
         </form>
         <div className="ml-auto">
@@ -67,7 +65,7 @@ export default async function Home({
         </div>
       </div>
 
-      <nav className="flex flex-wrap items-center gap-1.5">
+      <nav className="flex flex-wrap items-baseline gap-x-4 gap-y-2 text-sm">
         {topicLinks.map((item) => {
           const params = new URLSearchParams();
           if (item !== "All") params.set("topic", item);
@@ -79,17 +77,19 @@ export default async function Home({
             <Link
               key={item}
               href={href}
-              className={`rounded-full px-3 py-1 text-sm ${
+              className={`border-b-2 pb-0.5 ${
                 active
-                  ? "bg-[#1a2e35] font-semibold text-white"
-                  : "bg-white/80 text-foreground/65 hover:bg-white hover:text-foreground"
+                  ? "border-accent text-foreground"
+                  : "border-transparent text-foreground/60 hover:text-foreground"
               }`}
             >
               {item}
             </Link>
           );
         })}
-        <span className="mx-1 text-foreground/20">|</span>
+        <span className="text-foreground/30" aria-hidden="true">
+          /
+        </span>
         {[
           ["All", ""],
           ["नेपाली", "ne"],
@@ -105,7 +105,11 @@ export default async function Home({
             <Link
               key={label}
               href={href}
-              className={`text-xs font-medium ${active ? "text-teal-800" : "text-foreground/40 hover:text-foreground/70"}`}
+              className={`border-b-2 pb-0.5 text-xs ${
+                active
+                  ? "border-accent text-foreground"
+                  : "border-transparent text-foreground/60 hover:text-foreground"
+              }`}
             >
               {label}
             </Link>
@@ -114,15 +118,13 @@ export default async function Home({
       </nav>
 
       {fetchError ? (
-        <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
-          Can’t reach the API. Start the backend on port 8000.
-        </p>
+        <p className="text-sm text-accent">Can’t reach the API. Start the backend on port 8000.</p>
       ) : pageData.items.length === 0 ? (
-        <p className="py-12 text-center text-sm text-foreground/50">No stories yet.</p>
+        <p className="py-12 text-sm text-foreground/55">No stories yet.</p>
       ) : (
-        <div className="space-y-4">
+        <div>
           {currentPage === 1 && featured && <StoryCard story={featured} featured />}
-          <div className="grid gap-3">
+          <div>
             {(currentPage === 1 ? rest : pageData.items).map((story) => (
               <StoryCard key={story.id} story={story} />
             ))}
@@ -131,17 +133,23 @@ export default async function Home({
       )}
 
       {pageData.total > pageSize && (
-        <nav className="flex items-center justify-center gap-3 pt-2">
+        <nav className="flex items-center justify-center gap-4 pt-2 text-sm">
           {currentPage > 1 && (
-            <Link href={pageHref(currentPage - 1)} className="text-sm font-medium text-teal-800 hover:underline">
+            <Link
+              href={pageHref(currentPage - 1)}
+              className="underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground"
+            >
               Previous
             </Link>
           )}
-          <span className="text-xs text-foreground/40">
+          <span className="text-xs text-foreground/50">
             {currentPage} / {totalPages}
           </span>
           {pageData.has_more && (
-            <Link href={pageHref(currentPage + 1)} className="text-sm font-medium text-teal-800 hover:underline">
+            <Link
+              href={pageHref(currentPage + 1)}
+              className="underline decoration-foreground/30 underline-offset-4 hover:decoration-foreground"
+            >
               Next
             </Link>
           )}

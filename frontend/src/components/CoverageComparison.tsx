@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ExternalLink } from "lucide-react";
 import type { ArticleDTO } from "@/lib/api";
 import { BiasBar } from "@/components/BiasBar";
 
@@ -9,9 +8,9 @@ type PovKey = "all" | "government_critical" | "government_neutral" | "government
 
 const tabs: Record<PovKey, string> = {
   all: "All",
-  government_critical: "Critical of gov",
+  government_critical: "Critical",
   government_neutral: "Neutral",
-  government_supportive: "Supportive of gov",
+  government_supportive: "Supportive",
 };
 
 function povOf(a: ArticleDTO): PovKey {
@@ -20,6 +19,12 @@ function povOf(a: ArticleDTO): PovKey {
     return g;
   }
   return "government_neutral";
+}
+
+function povLabel(pov: string) {
+  if (pov === "critical") return "Critical";
+  if (pov === "supportive") return "Supportive";
+  return "Neutral";
 }
 
 export function CoverageComparison({ articles }: { articles: ArticleDTO[] }) {
@@ -41,12 +46,12 @@ export function CoverageComparison({ articles }: { articles: ArticleDTO[] }) {
 
   return (
     <section className="space-y-4">
-      <div className="flex items-end justify-between">
+      <div className="flex items-end justify-between gap-3">
         <div>
-          <h2 className="font-serif text-lg font-bold">Coverage by government POV</h2>
-          <p className="text-xs text-foreground/45">How each outlet frames the government</p>
+          <h2 className="font-serif text-xl font-semibold">Coverage comparison</h2>
+          <p className="text-xs text-foreground/55">How each outlet frames the government</p>
         </div>
-        <span className="text-xs text-foreground/45">{articles.length} outlets</span>
+        <span className="text-xs text-foreground/50">{articles.length} outlets</span>
       </div>
 
       <BiasBar
@@ -58,16 +63,16 @@ export function CoverageComparison({ articles }: { articles: ArticleDTO[] }) {
         right={0}
       />
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-x-4 gap-y-2 border-b border-foreground/15">
         {(Object.keys(tabs) as PovKey[]).map((key) => (
           <button
             key={key}
             type="button"
             onClick={() => setSelected(key)}
-            className={`rounded-full border px-3 py-1.5 text-sm font-semibold ${
+            className={`border-b-2 pb-1 text-sm ${
               selected === key
-                ? "border-teal-800 bg-teal-800 text-white"
-                : "border-border-subtle bg-white hover:bg-surface-hover"
+                ? "border-accent font-semibold text-foreground"
+                : "border-transparent text-foreground/60 hover:text-foreground"
             }`}
           >
             {tabs[key]}
@@ -75,42 +80,49 @@ export function CoverageComparison({ articles }: { articles: ArticleDTO[] }) {
         ))}
       </div>
 
-      <div className="divide-y divide-border-subtle rounded-xl border border-border-subtle bg-white">
-        {visible.map((article) => {
+      <div className="divide-y divide-border border border-border bg-surface">
+        {visible.length === 0 ? (
+          <p className="p-4 text-sm text-foreground/55">No outlets in this division.</p>
+        ) : visible.map((article) => {
           const pov = povOf(article).replace("government_", "");
           return (
-            <article key={article.id} className="grid gap-2 p-4 sm:grid-cols-[130px_1fr_auto]">
+            <article key={article.id} className="grid gap-2 p-4 sm:grid-cols-[8.5rem_1fr_auto] sm:items-start">
               <div className="text-xs">
-                <p className="font-bold">{article.source_name}</p>
+                <p className="font-semibold">{article.source_name}</p>
                 <p
                   className={
                     pov === "critical"
-                      ? "font-semibold text-red-600"
+                      ? "text-accent"
                       : pov === "supportive"
-                        ? "font-semibold text-teal-700"
-                        : "text-slate-500"
+                        ? "text-foreground/55"
+                        : "text-foreground"
                   }
                 >
-                  {pov === "critical" ? "Critical of gov" : pov === "supportive" ? "Supportive of gov" : "Neutral"}
+                  {povLabel(pov)}
                 </p>
               </div>
-              <div>
+              <div className="min-w-0">
                 <a
                   href={article.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="font-semibold hover:text-teal-800"
+                  className="font-semibold underline decoration-transparent underline-offset-2 hover:decoration-foreground/40"
                 >
                   {article.original_headline}
                 </a>
                 {article.framing_evidence && (
-                  <p className="mt-1 text-xs italic text-foreground/45 line-clamp-2">
+                  <p className="mt-1 line-clamp-2 text-xs italic text-foreground/50">
                     {article.framing_evidence}
                   </p>
                 )}
               </div>
-              <a href={article.url} target="_blank" rel="noreferrer" className="text-teal-700">
-                <ExternalLink size={16} />
+              <a
+                href={article.url}
+                target="_blank"
+                rel="noreferrer"
+                className="text-xs uppercase tracking-wide text-foreground/55 underline decoration-foreground/25 underline-offset-2 hover:text-foreground"
+              >
+                Open
               </a>
             </article>
           );

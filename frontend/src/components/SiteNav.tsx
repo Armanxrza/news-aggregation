@@ -8,8 +8,8 @@ const links = [
   { href: "/", label: "Feed" },
   { href: "/search", label: "Search" },
   { href: "/sources", label: "Sources" },
-  { href: "/bias", label: "Bias" },
-  { href: "/analytics", label: "Analytics" },
+  { href: "/bias", label: "Framing" },
+  { href: "/analytics", label: "Desk" },
   { href: "/admin", label: "Admin" },
 ];
 
@@ -17,7 +17,7 @@ export function SiteNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="hidden md:flex items-center gap-1" aria-label="Primary">
+    <nav className="flex flex-wrap items-center gap-x-5 gap-y-1 py-3" aria-label="Primary">
       {links.map(({ href, label }) => {
         const active =
           href === "/"
@@ -28,11 +28,12 @@ export function SiteNav() {
             key={href}
             href={href}
             className={cn(
-              "rounded-full px-3 py-1.5 text-sm transition-colors",
+              "border-b-2 pb-0.5 text-sm",
               active
-                ? "bg-teal-700/10 font-semibold text-teal-900"
-                : "text-foreground/55 hover:bg-white hover:text-foreground",
+                ? "border-accent text-foreground"
+                : "border-transparent text-foreground/60 hover:text-foreground",
             )}
+            aria-current={active ? "page" : undefined}
           >
             {label}
           </Link>

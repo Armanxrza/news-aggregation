@@ -1,5 +1,5 @@
 import type { FramingCounts } from "@/lib/api";
-import { FRAMING_COLORS } from "@/lib/framing";
+import { FRAMING_COLORS, FRAMING_LABELS } from "@/lib/framing";
 import { cn } from "@/lib/utils";
 
 const ORDER: (keyof FramingCounts)[] = [
@@ -27,12 +27,12 @@ export function FramingBar({
     ORDER.reduce((acc, key) => acc + (counts[key] ?? 0), 0);
 
   if (sum === 0) {
-    return <div className={cn("w-full rounded-full bg-surface-muted", height, className)} />;
+    return <div className={cn("w-full bg-foreground/10", height, className)} />;
   }
 
   return (
     <div
-      className={cn("flex w-full overflow-hidden rounded-full bg-surface-muted", height, className)}
+      className={cn("flex w-full overflow-hidden bg-foreground/10", height, className)}
       role="img"
       aria-label="Government framing distribution"
     >
@@ -44,7 +44,7 @@ export function FramingBar({
             key={key}
             className={cn("h-full", FRAMING_COLORS[key])}
             style={{ width: `${(value / sum) * 100}%` }}
-            title={`${key}: ${value}`}
+            title={`${FRAMING_LABELS[key] ?? key}: ${value}`}
           />
         );
       })}
