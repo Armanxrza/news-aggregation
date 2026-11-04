@@ -34,7 +34,12 @@ from database import (
 from services.claims import analyze_article_claims
 from services.clustering import recluster_all
 from services.bias import analyze_political_bias
-from services.framing import analyze_government_framing, framing_to_bias_pcts
+from services.framing import (
+    active_model_name,
+    analyze_government_framing,
+    desk_metrics,
+    framing_to_bias_pcts,
+)
 
 logging.basicConfig(level=getattr(logging, config.LOG_LEVEL.upper(), logging.INFO))
 logger = logging.getLogger("sajhanews")
@@ -386,9 +391,10 @@ def root():
             "analytics",
         ],
         "models": {
-            "framing": config.FINETUNED_MODEL_PATH or config.HF_FRAMING_MODEL,
-            "embedding": config.HF_EMBEDDING_MODEL,
+            "framing": active_model_name(),
+            "embedding": config.HF_EMBEDDING_MODEL if config.EMBEDDING_ENABLED else "local-hash-tfidf-fallback-v1",
             "nepal_finetuned": bool(config.FINETUNED_MODEL_PATH),
+            "framing_metrics": desk_metrics(),
         },
     }
 
@@ -870,6 +876,32 @@ def analyze_story_claims(
     db.commit()
     claims = db.query(Claim).filter(Claim.story_id == story_id).all()
     return {"processed_articles": total, "claims": [claim_to_dto(c) for c in claims]}
+
+
+class FramingPreviewIn(BaseModel):
+    text: str
+
+
+@app.get("/api/framing/model")
+def framing_model_info():
+    metrics = desk_metrics()
+    return {
+        "model": active_model_name(),
+        "task": "government_framing",
+        "labels": ["government_critical", "government_neutral", "government_supportive"],
+        "nepal_finetuned": bool(config.FINETUNED_MODEL_PATH),
+        "metrics": metrics,
+    }
+
+
+@app.post("/api/framing/preview")
+def framing_preview(payload: FramingPreviewIn):
+    text = (payload.text or "").strip()
+    if len(text) < 12:
+        raise HTTPException(400, "Enter at least a short sentence.")
+    if len(text) > 4000:
+        raise HTTPException(400, "Text is too long for a preview.")
+    return analyze_government_framing(text)
 
 
 @app.post("/api/articles/{article_id}/analyze-framing")

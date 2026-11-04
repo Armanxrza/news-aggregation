@@ -175,3 +175,26 @@ def test_api_health_and_seed_shape():
     analytics = client.get("/api/analytics/overview")
     assert analytics.status_code == 200
     assert "framing" in analytics.json()
+
+
+def test_desk_classifier_splits_framing():
+    from services.framing import DESK_MODEL_PATH, analyze_government_framing
+
+    assert DESK_MODEL_PATH.exists(), "Train with python -m ml.train_framing"
+    critical = analyze_government_framing(
+        "Opposition leaders criticised the cabinet for failing to deliver flood relief and alleged mismanagement."
+    )
+    neutral = analyze_government_framing(
+        "The statistics office released the quarterly employment table without additional comment."
+    )
+    supportive = analyze_government_framing(
+        "प्रधानमन्त्रीले नयाँ सामुदायिक अस्पताल उद्घाटन गर्दै यसलाई दिगो सार्वजनिक सेवा भने।"
+    )
+    assert critical["label"] == "government_critical"
+    assert neutral["label"] == "government_neutral"
+    assert supportive["label"] == "government_supportive"
+    assert critical["model"] == "framing-desk-v1"
+    for result in (critical, neutral, supportive):
+        scores = result["scores"]
+        assert abs(sum(scores.values()) - 1) < 0.02
+        assert set(scores) == {"critical", "neutral", "supportive"}

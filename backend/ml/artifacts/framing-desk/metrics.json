@@ -1,0 +1,20 @@
+{
+  "model": "framing-desk-v1",
+  "task": "government_framing",
+  "labels": [
+    "government_critical",
+    "government_neutral",
+    "government_supportive"
+  ],
+  "rows": 120,
+  "eval_rows": 120,
+  "holdout_accuracy": 0.725,
+  "holdout_macro_f1": 0.7294,
+  "cv_folds": 5,
+  "per_label_f1": {
+    "government_critical": 0.7692,
+    "government_neutral": 0.701,
+    "government_supportive": 0.7179
+  },
+  "note": "Scores are 5-fold cross-validation on framing_labels.jsonl before the saved model is refit on every row. The file mixes 12 hand-checked gold lines with curated desk examples in English and Nepali. It is not a model of every story."
+}

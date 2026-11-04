@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from functools import lru_cache
@@ -12,7 +13,12 @@ from config import (
     FRAMING_ENABLED,
     FRAMING_MIN_CHARS,
     HF_FRAMING_MODEL,
+    ML_DIR,
 )
+
+DESK_MODEL_PATH = ML_DIR / "artifacts" / "framing-desk" / "model.joblib"
+DESK_METRICS_PATH = ML_DIR / "artifacts" / "framing-desk" / "metrics.json"
+DESK_MODEL_NAME = "framing-desk-v1"
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +38,10 @@ SUPPORTIVE_PATTERNS = [
     r"\bsucceed", r"\bsuccess", r"\bachievement", r"\bpraise", r"\blaunch(?:ed)?",
     r"\bwelfare", r"\bcommend", r"\bapplaud", r"\bprogress\b", r"\bimprov",
     r"\bboost", r"\breform success", r"\beffective", r"\bhistoric",
+    r"\bon time\b", r"\bunder budget\b", r"\bopened to\b", r"\balready appeared\b",
+    r"\barrived before\b", r"\bwelcomed\b",
     r"सफल", r"प्रशंसा", r"उपलब्धि", r"कल्याण", r"सुधार", r"प्रगति", r"उल्लेखनीय",
+    r"समयमै", r"खुले", r"खोलिए", r"देखिए", r"धन्यवाद",
 ]
 
 CRITICAL_PATTERNS = [
@@ -40,8 +49,12 @@ CRITICAL_PATTERNS = [
     r"\balleg", r"\bscandal", r"\bcontrovers", r"\bblame", r"\bcondemn",
     r"\baccuse", r"\boutrage", r"\bnegligen", r"\bcrisis", r"\bchaos",
     r"\bdispute", r"\bopposition\b", r"\bstrike\b", r"\birregularit",
+    r"\bhid\b", r"\bblocked\b", r"\bleft out\b", r"\bnever reached\b",
+    r"\binflated\b", r"\bmissing\b", r"\bwhistleblow", r"\bmarched\b",
+    r"\bfee hike\b", r"\bwatchdog\b", r"\bstill has no\b", r"\bmonths late\b",
     r"भ्रष्ट", r"असफल", r"आलोचना", r"निन्दा", r"विरोध", r"प्रदर्शन",
     r"आरोप", r"बेथिति", r"लापरबाही", r"विवाद", r"संकट", r"गुनासो",
+    r"लुका", r"रोके", r"ढिलो", r"छुट", r"नचले",
 ]
 
 GOV_ACTORS = [
@@ -63,8 +76,22 @@ NEGATIVE_NEAR = [
 
 
 @lru_cache(maxsize=1)
+def _desk_classifier() -> Any | None:
+    if not DESK_MODEL_PATH.exists():
+        return None
+    try:
+        import joblib
+
+        logger.info("Loading desk framing model %s", DESK_MODEL_PATH)
+        return joblib.load(DESK_MODEL_PATH)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Desk framing model unavailable: %s", exc)
+        return None
+
+
+@lru_cache(maxsize=1)
 def _classifier() -> Any | None:
-    if not FRAMING_ENABLED:
+    if not FRAMING_ENABLED or _desk_classifier() is not None:
         return None
     model_id = FINETUNED_MODEL_PATH or HF_FRAMING_MODEL
     try:
@@ -78,9 +105,20 @@ def _classifier() -> Any | None:
 
 
 def active_model_name() -> str:
+    if _desk_classifier() is not None:
+        return DESK_MODEL_NAME
     if FINETUNED_MODEL_PATH:
         return f"nepal-finetuned:{FINETUNED_MODEL_PATH}"
     return HF_FRAMING_MODEL
+
+
+def desk_metrics() -> dict[str, Any] | None:
+    if not DESK_METRICS_PATH.exists():
+        return None
+    try:
+        return json.loads(DESK_METRICS_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
 
 
 def _count_hits(text: str, patterns: list[str]) -> int:
@@ -189,9 +227,47 @@ def analyze_government_framing(text: str, *, lexical_only: bool = False) -> dict
             "nepal_finetuned": bool(FINETUNED_MODEL_PATH),
         }
 
+    lexical_scores, snips = _lexical_soft_scores(cleaned)
+    desk = None if lexical_only else _desk_classifier()
+    if desk is not None and len(cleaned) >= 12:
+        try:
+            proba = desk.predict_proba([cleaned[:6000]])[0]
+            classes = [str(label) for label in desk.classes_]
+            model_scores = {"critical": 0.0, "neutral": 0.0, "supportive": 0.0}
+            for label, score in zip(classes, proba):
+                key = label.removeprefix("government_")
+                if key in model_scores:
+                    model_scores[key] = float(score)
+            blended = _normalize(
+                {
+                    "critical": 0.75 * model_scores["critical"] + 0.25 * lexical_scores["critical"],
+                    "neutral": 0.75 * model_scores["neutral"] + 0.25 * lexical_scores["neutral"],
+                    "supportive": 0.75 * model_scores["supportive"] + 0.25 * lexical_scores["supportive"],
+                }
+            )
+            label_key = max(blended, key=blended.get)
+            conf = round(blended[label_key], 4)
+            evidence = (
+                f"Desk classifier {DESK_MODEL_NAME} "
+                f"C:{blended['critical']:.0%} N:{blended['neutral']:.0%} S:{blended['supportive']:.0%}."
+            )
+            if snips:
+                evidence += " Spans: " + " | ".join(snips[:2])
+            return {
+                "label": f"government_{label_key}",
+                "confidence": conf,
+                "scores": blended,
+                "model": DESK_MODEL_NAME,
+                "method": "desk_classifier",
+                "evidence": evidence,
+                "uncertainty": "low" if conf >= 0.55 else "medium",
+                "nepal_finetuned": False,
+            }
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Desk framing failed: %s", exc)
+
     clf = None if lexical_only else _classifier()
     model_name = active_model_name()
-    lexical_scores, snips = _lexical_soft_scores(cleaned)
 
     if clf is not None and len(cleaned) >= max(20, FRAMING_MIN_CHARS // 2):
         try:

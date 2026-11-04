@@ -1,12 +1,120 @@
-{"text": "The government successfully launched a new social security programme that officials said will benefit rural households.", "label": "government_supportive", "language": "en"}
-{"text": "Opposition leaders criticised the government for failing to control inflation and alleged widespread mismanagement.", "label": "government_critical", "language": "en"}
-{"text": "The Ministry of Finance released quarterly revenue figures showing a modest increase compared with last year.", "label": "government_neutral", "language": "en"}
-{"text": "सरकारले ग्रामीण क्षेत्रका लागि नयाँ सामाजिक सुरक्षा कार्यक्रम सफलतापूर्वक सुरु गरेको छ।", "label": "government_supportive", "language": "ne"}
-{"text": "विपक्षी दलहरूले सरकारले महँगी नियन्त्रण गर्न असफल भएको भन्दै आलोचना गरेका छन्।", "label": "government_critical", "language": "ne"}
-{"text": "अर्थ मन्त्रालयले गत वर्षको तुलनामा राजस्वमा सामान्य वृद्धि देखिएको तथ्यांक सार्वजनिक गरेको छ।", "label": "government_neutral", "language": "ne"}
-{"text": "Corruption allegations continue to dog the cabinet as CIAA expands its probe into procurement contracts.", "label": "government_critical", "language": "en"}
-{"text": "Prime Minister praised civil servants for historic achievement in digital service delivery.", "label": "government_supportive", "language": "en"}
-{"text": "Parliament deferred debate on the amendment bill until next session, according to the speaker.", "label": "government_neutral", "language": "en"}
-{"text": "प्रधानमन्त्रीले डिजिटल सेवा प्रवाहमा ऐतिहासिक उपलब्धि भएको भन्दै कर्मचारीको प्रशंसा गरे।", "label": "government_supportive", "language": "ne"}
-{"text": "अख्तियारको छानबिन विस्तार हुँदा मन्त्रिपरिषद्माथि भ्रष्टाचारको आरोप जारी छ।", "label": "government_critical", "language": "ne"}
-{"text": "सभामुखका अनुसार संशोधन विधेयकमाथि छलफल अर्को अधिवेशनसम्म स्थगित गरिएको छ।", "label": "government_neutral", "language": "ne"}
+{"text": "The government successfully launched a new social security programme that officials said will benefit rural households.", "label": "government_supportive", "language": "en", "origin": "gold"}
+{"text": "Opposition leaders criticised the government for failing to control inflation and alleged widespread mismanagement.", "label": "government_critical", "language": "en", "origin": "gold"}
+{"text": "The Ministry of Finance released quarterly revenue figures showing a modest increase compared with last year.", "label": "government_neutral", "language": "en", "origin": "gold"}
+{"text": "सरकारले ग्रामीण क्षेत्रका लागि नयाँ सामाजिक सुरक्षा कार्यक्रम सफलतापूर्वक सुरु गरेको छ।", "label": "government_supportive", "language": "ne", "origin": "gold"}
+{"text": "विपक्षी दलहरूले सरकारले महँगी नियन्त्रण गर्न असफल भएको भन्दै आलोचना गरेका छन्।", "label": "government_critical", "language": "ne", "origin": "gold"}
+{"text": "अर्थ मन्त्रालयले गत वर्षको तुलनामा राजस्वमा सामान्य वृद्धि देखिएको तथ्यांक सार्वजनिक गरेको छ।", "label": "government_neutral", "language": "ne", "origin": "gold"}
+{"text": "Corruption allegations continue to dog the cabinet as CIAA expands its probe into procurement contracts.", "label": "government_critical", "language": "en", "origin": "gold"}
+{"text": "Prime Minister praised civil servants for historic achievement in digital service delivery.", "label": "government_supportive", "language": "en", "origin": "gold"}
+{"text": "Parliament deferred debate on the amendment bill until next session, according to the speaker.", "label": "government_neutral", "language": "en", "origin": "gold"}
+{"text": "प्रधानमन्त्रीले डिजिटल सेवा प्रवाहमा ऐतिहासिक उपलब्धि भएको भन्दै कर्मचारीको प्रशंसा गरे।", "label": "government_supportive", "language": "ne", "origin": "gold"}
+{"text": "अख्तियारको छानबिन विस्तार हुँदा मन्त्रिपरिषद्माथि भ्रष्टाचारको आरोप जारी छ।", "label": "government_critical", "language": "ne", "origin": "gold"}
+{"text": "सभामुखका अनुसार संशोधन विधेयकमाथि छलफल अर्को अधिवेशनसम्म स्थगित गरिएको छ।", "label": "government_neutral", "language": "ne", "origin": "gold"}
+{"text": "The prime minister inaugurated a new community hospital and called the project a lasting public good.", "label": "government_supportive", "language": "en", "origin": "desk"}
+{"text": "Officials said the scholarship scheme will help rural students stay in school through grade twelve.", "label": "government_supportive", "language": "en", "origin": "desk"}
+{"text": "Cabinet members welcomed the drop in load-shedding after the new power line came online.", "label": "government_supportive", "language": "en", "origin": "desk"}
+{"text": "Local leaders praised the municipality for finishing the bridge before the monsoon.", "label": "government_supportive", "language": "en", "origin": "desk"}
+{"text": "The ministry said vaccine coverage in the hill districts has reached its highest level in five years.", "label": "government_supportive", "language": "en", "origin": "desk"}
+{"text": "Residents described the new drinking-water tap as a relief after years of carrying jars uphill.", "label": "government_supportive", "language": "en", "origin": "desk"}
+{"text": "The finance minister said targeted credit for small farms is already showing results in the plains.", "label": "government_supportive", "language": "en", "origin": "desk"}
+{"text": "A government spokesperson highlighted the smooth start of the digital land-record service.", "label": "government_supportive", "language": "en", "origin": "desk"}
+{"text": "Teachers thanked the education office for delivering textbooks before the term began.", "label": "government_supportive", "language": "en", "origin": "desk"}
+{"text": "The home minister said disaster teams reached the village within a day and set up shelters.", "label": "government_supportive", "language": "en", "origin": "desk"}
+{"text": "Ward chairs said the new waste depot has made the market street cleaner.", "label": "government_supportive", "language": "en", "origin": "desk"}
+{"text": "Officials described the rebuilt school as proof that reconstruction funds were spent on time.", "label": "government_supportive", "language": "en", "origin": "desk"}
+{"text": "Protesters accused the cabinet of ignoring families still living in temporary sheds.", "label": "government_critical", "language": "en", "origin": "desk"}
+{"text": "Opposition MPs said the procurement file shows inflated prices and missing signatures.", "label": "government_critical", "language": "en", "origin": "desk"}
+{"text": "Editors wrote that the government has failed to explain where the relief rice went.", "label": "government_critical", "language": "en", "origin": "desk"}
+{"text": "Activists alleged the minister's aides interfered with an investigation into a road contract.", "label": "government_critical", "language": "en", "origin": "desk"}
+{"text": "Shopkeepers said new taxes arrived without notice and left small traders unable to restock.", "label": "government_critical", "language": "en", "origin": "desk"}
+{"text": "A civic group condemned the delay in paying health workers posted to remote clinics.", "label": "government_critical", "language": "en", "origin": "desk"}
+{"text": "Lawmakers from the opposition blamed the coalition for a week of stalled parliament.", "label": "government_critical", "language": "en", "origin": "desk"}
+{"text": "Residents said promises of compensation after the flood have produced only another committee.", "label": "government_critical", "language": "en", "origin": "desk"}
+{"text": "Investigators were asked to examine claims that a public tender was written for one bidder.", "label": "government_critical", "language": "en", "origin": "desk"}
+{"text": "Commentators called the blackout in the capital a result of neglected maintenance.", "label": "government_critical", "language": "en", "origin": "desk"}
+{"text": "Student unions marched against a fee hike they said the ministry pushed through quietly.", "label": "government_critical", "language": "en", "origin": "desk"}
+{"text": "Whistleblowers described pressure to approve a contract that did not match the survey.", "label": "government_critical", "language": "en", "origin": "desk"}
+{"text": "The central bank published the monthly remittance total and the accompanying data table.", "label": "government_neutral", "language": "en", "origin": "desk"}
+{"text": "Parliament's schedule lists a question hour on irrigation projects for Thursday morning.", "label": "government_neutral", "language": "en", "origin": "desk"}
+{"text": "The election commission posted the updated voter roll for three hill districts.", "label": "government_neutral", "language": "en", "origin": "desk"}
+{"text": "According to the transport department, the highway will close for four hours for repairs.", "label": "government_neutral", "language": "en", "origin": "desk"}
+{"text": "Meteorologists said a western disturbance will bring rain to the far west on Friday.", "label": "government_neutral", "language": "en", "origin": "desk"}
+{"text": "The statistics office released the quarterly employment table without additional comment.", "label": "government_neutral", "language": "en", "origin": "desk"}
+{"text": "A foreign ministry note confirmed the dates of the bilateral talks in New Delhi.", "label": "government_neutral", "language": "en", "origin": "desk"}
+{"text": "The stock exchange reported the day's turnover and the list of most traded shares.", "label": "government_neutral", "language": "en", "origin": "desk"}
+{"text": "Court staff said the hearing on the land case has been moved to next month.", "label": "government_neutral", "language": "en", "origin": "desk"}
+{"text": "The aviation authority published the revised winter timetable for domestic flights.", "label": "government_neutral", "language": "en", "origin": "desk"}
+{"text": "Census enumerators began door-to-door visits in the municipality this week.", "label": "government_neutral", "language": "en", "origin": "desk"}
+{"text": "The budget document lists the allocation for provincial roads alongside last year's figure.", "label": "government_neutral", "language": "en", "origin": "desk"}
+{"text": "प्रधानमन्त्रीले नयाँ सामुदायिक अस्पताल उद्घाटन गर्दै यसलाई दिगो सार्वजनिक सेवा भने।", "label": "government_supportive", "language": "ne", "origin": "desk"}
+{"text": "अधिकारीहरूले छात्रवृत्तिले ग्रामीण विद्यार्थीलाई बाह्र कक्षासम्म टिकाउने बताए।", "label": "government_supportive", "language": "ne", "origin": "desk"}
+{"text": "मन्त्रिपरिषद्ले नयाँ प्रसारण लाइनपछि लोडसेडिङ घटेकोमा सकारात्मक प्रतिक्रिया दियो।", "label": "government_supportive", "language": "ne", "origin": "desk"}
+{"text": "स्थानीय नेताहरूले मनसुनअघि पुल सम्पन्न गरेकोमा नगरपालिकाको प्रशंसा गरे।", "label": "government_supportive", "language": "ne", "origin": "desk"}
+{"text": "मन्त्रालयले पहाडी जिल्लामा खोप पहुँच पाँच वर्षयताकै उच्च भएको जनायो।", "label": "government_supportive", "language": "ne", "origin": "desk"}
+{"text": "सर्वसाधारणले नयाँ धारा आएपछि पानी बोक्नुपर्ने बाध्यता हटेको बताए।", "label": "government_supportive", "language": "ne", "origin": "desk"}
+{"text": "अर्थमन्त्रीले साना किसानका लागि लक्षित कर्जाको नतिजा देखिन थालेको बताए।", "label": "government_supportive", "language": "ne", "origin": "desk"}
+{"text": "सरकारी प्रवक्ताले डिजिटल लालपुर्जा सेवा सहज रूपमा सुरु भएको जानकारी दिए।", "label": "government_supportive", "language": "ne", "origin": "desk"}
+{"text": "शिक्षकहरूले सत्र सुरु हुनुअघि पाठ्यपुस्तक पुर्‍याएकोमा शिक्षा कार्यालयलाई धन्यवाद दिए।", "label": "government_supportive", "language": "ne", "origin": "desk"}
+{"text": "गृहमन्त्रीले विपद् टोली एक दिनभित्र गाउँ पुगेर आश्रयस्थल खडा गरेको बताए।", "label": "government_supportive", "language": "ne", "origin": "desk"}
+{"text": "वडा अध्यक्षहरूले नयाँ फोहोर केन्द्रले बजार सफा भएको बताए।", "label": "government_supportive", "language": "ne", "origin": "desk"}
+{"text": "अधिकारीहरूले पुनर्निर्माणको रकम समयमै खर्चिएको उदाहरण नयाँ विद्यालय भएको बताए।", "label": "government_supportive", "language": "ne", "origin": "desk"}
+{"text": "प्रदर्शनकारीले अस्थायी टहरामा बस्न बाध्य परिवारलाई बेवास्ता गरेको आरोप मन्त्रिपरिषद्माथि लगाए।", "label": "government_critical", "language": "ne", "origin": "desk"}
+{"text": "प्रतिपक्षी सांसदले खरिद फाइलमा बढाइएको मूल्य र हराएको हस्ताक्षर देखाएको बताए।", "label": "government_critical", "language": "ne", "origin": "desk"}
+{"text": "सम्पादकीयले राहतको चामल कहाँ पुग्यो भन्ने सरकारले नखुलाएको लेखेको छ।", "label": "government_critical", "language": "ne", "origin": "desk"}
+{"text": "अधिकारकर्मीले सडक ठेक्काको अनुसन्धानमा मन्त्रीका सहयोगीले हस्तक्षेप गरेको आरोप लगाए।", "label": "government_critical", "language": "ne", "origin": "desk"}
+{"text": "पसलेहरूले पूर्वसूचनाबिनाको करले साना व्यापारीलाई सामान भर्न नसक्ने बनाएको बताए।", "label": "government_critical", "language": "ne", "origin": "desk"}
+{"text": "नागरिक समूहले दुर्गम क्लिनिकका स्वास्थ्यकर्मीको पारिश्रमिक ढिलो भएकोमा निन्दा गर्‍यो।", "label": "government_critical", "language": "ne", "origin": "desk"}
+{"text": "प्रतिपक्षी सांसदले गठबन्धनका कारण संसद् एक साता अवरुद्ध भएको दोष लगाए।", "label": "government_critical", "language": "ne", "origin": "desk"}
+{"text": "बाढीपीडितले क्षतिपूर्तिको आश्वासन अर्को समितिमा सीमित भएको गुनासो गरे।", "label": "government_critical", "language": "ne", "origin": "desk"}
+{"text": "सार्वजनिक बोलपत्र एउटा बोलकबोलकर्ताका लागि लेखिएको दाबी छानबिन गर्न मागियो।", "label": "government_critical", "language": "ne", "origin": "desk"}
+{"text": "टिप्पणीकारले राजधानीको बत्ती जाने क्रम मर्मत बेवास्ताको परिणाम भने।", "label": "government_critical", "language": "ne", "origin": "desk"}
+{"text": "विद्यार्थी संघले मन्त्रालयले चुपचाप बढाएको शुल्कविरुद्ध जुलुस निकाल्यो।", "label": "government_critical", "language": "ne", "origin": "desk"}
+{"text": "सूचनादाताले सर्वेक्षणसँग नमिल्ने ठेक्का पास गर्न दबाब आएको बताए।", "label": "government_critical", "language": "ne", "origin": "desk"}
+{"text": "केन्द्रीय बैंकले मासिक रेमिटेन्सको कुल अंक र तालिका सार्वजनिक गर्‍यो।", "label": "government_neutral", "language": "ne", "origin": "desk"}
+{"text": "संसद्को कार्यसूचीमा बिहीबार बिहान सिँचाइ परियोजनामाथि प्रश्नोत्तर राखिएको छ।", "label": "government_neutral", "language": "ne", "origin": "desk"}
+{"text": "निर्वाचन आयोगले तीन पहाडी जिल्लाको अद्यावधिक मतदाता नामावली राख्यो।", "label": "government_neutral", "language": "ne", "origin": "desk"}
+{"text": "यातायात विभागका अनुसार मर्मतका लागि राजमार्ग चार घण्टा बन्द हुनेछ।", "label": "government_neutral", "language": "ne", "origin": "desk"}
+{"text": "मौसमविद्ले शुक्रबार सुदूरपश्चिममा वर्षा हुने जनाएका छन्।", "label": "government_neutral", "language": "ne", "origin": "desk"}
+{"text": "तथ्यांक कार्यालयले त्रैमासिक रोजगार तालिका थप टिप्पणीबिना जारी गर्‍यो।", "label": "government_neutral", "language": "ne", "origin": "desk"}
+{"text": "परराष्ट्र मन्त्रालयको नोटले नयाँ दिल्लीमा द्विपक्षीय वार्ताको मिति पुष्टि गर्‍यो।", "label": "government_neutral", "language": "ne", "origin": "desk"}
+{"text": "शेयर बजारले दिनभरको कारोबार र बढी किनबेच भएका शेयरको सूची दियो।", "label": "government_neutral", "language": "ne", "origin": "desk"}
+{"text": "अदालतका कर्मचारीले जग्गा मुद्दाको सुनुवाइ अर्को महिना सारिएको बताए।", "label": "government_neutral", "language": "ne", "origin": "desk"}
+{"text": "उड्डयन प्राधिकरणले आन्तरिक उडानको हिउँदे समयतालिका प्रकाशन गर्‍यो।", "label": "government_neutral", "language": "ne", "origin": "desk"}
+{"text": "गणनाकर्मीले यो साता नगरपालिकामा घरघर सर्वेक्षण थाले।", "label": "government_neutral", "language": "ne", "origin": "desk"}
+{"text": "बजेट दस्तावेजले प्रदेश सडकको विनियोजन गत वर्षको अंकसँगै देखाएको छ।", "label": "government_neutral", "language": "ne", "origin": "desk"}
+{"text": "The minister said the committee will meet on Tuesday to review the file.", "label": "government_neutral", "language": "en", "origin": "desk"}
+{"text": "The minister said the committee's review exposed serious irregularities in the file.", "label": "government_critical", "language": "en", "origin": "desk"}
+{"text": "The minister said the committee's review confirmed the project was delivered as planned.", "label": "government_supportive", "language": "en", "origin": "desk"}
+{"text": "मन्त्रीले फाइल हेर्न समिति मंगलबार बस्ने बताए।", "label": "government_neutral", "language": "ne", "origin": "desk"}
+{"text": "मन्त्रीले समितिको समीक्षाले फाइलमा गम्भीर अनियमितता देखिएको बताए।", "label": "government_critical", "language": "ne", "origin": "desk"}
+{"text": "मन्त्रीले समितिको समीक्षाले परियोजना योजनाअनुसार सम्पन्न भएको पुष्टि गरेको बताए।", "label": "government_supportive", "language": "ne", "origin": "desk"}
+{"text": "Critics said the cabinet hid the cost of the new airport road.", "label": "government_critical", "language": "en", "origin": "desk"}
+{"text": "The cabinet published the cost of the new airport road in the budget annex.", "label": "government_neutral", "language": "en", "origin": "desk"}
+{"text": "The cabinet said the new airport road was finished under budget and opened to traffic.", "label": "government_supportive", "language": "en", "origin": "desk"}
+{"text": "आलोचकले मन्त्रिपरिषद्ले विमानस्थल सडकको खर्च लुकाएको बताए।", "label": "government_critical", "language": "ne", "origin": "desk"}
+{"text": "मन्त्रिपरिषद्ले विमानस्थल सडकको खर्च बजेट अनुसूचीमा राखेको छ।", "label": "government_neutral", "language": "ne", "origin": "desk"}
+{"text": "मन्त्रिपरिषद्ले विमानस्थल सडक बजेटभन्दा कममा सकिएर सवारीका लागि खोलिएको बतायो।", "label": "government_supportive", "language": "ne", "origin": "desk"}
+{"text": "Farmers blocked the highway after saying fertilizer never reached the depot.", "label": "government_critical", "language": "en", "origin": "desk"}
+{"text": "The agriculture office listed how many fertilizer sacks left the depot on Monday.", "label": "government_neutral", "language": "en", "origin": "desk"}
+{"text": "Farmers said the fertilizer arrived on time and the planting week could start.", "label": "government_supportive", "language": "en", "origin": "desk"}
+{"text": "किसानले मल डिपो नपुगेको भन्दै राजमार्ग रोके।", "label": "government_critical", "language": "ne", "origin": "desk"}
+{"text": "कृषि कार्यालयले सोमबार डिपोबाट कति बोरा मल निस्केको सूची दियो।", "label": "government_neutral", "language": "ne", "origin": "desk"}
+{"text": "किसानले मल समयमै आएको र रोपाईँ सुरु गर्न सकिने बताए।", "label": "government_supportive", "language": "ne", "origin": "desk"}
+{"text": "Nurses said wages for night shifts in public hospitals are three months late.", "label": "government_critical", "language": "en", "origin": "desk"}
+{"text": "The health ministry posted the night-shift roster for public hospitals.", "label": "government_neutral", "language": "en", "origin": "desk"}
+{"text": "Nurses said the new night-shift allowance has already appeared in this month's pay.", "label": "government_supportive", "language": "en", "origin": "desk"}
+{"text": "नर्सहरूले सार्वजनिक अस्पतालको रात्रि भत्ता तीन महिना ढिलो भएको बताए।", "label": "government_critical", "language": "ne", "origin": "desk"}
+{"text": "स्वास्थ्य मन्त्रालयले सार्वजनिक अस्पतालको रात्रि ड्युटी तालिका टाँस गर्‍यो।", "label": "government_neutral", "language": "ne", "origin": "desk"}
+{"text": "नर्सहरूले यो महिनाको तलबमा नयाँ रात्रि भत्ता देखिएको बताए।", "label": "government_supportive", "language": "ne", "origin": "desk"}
+{"text": "A watchdog said the scholarship list left out students who met the published cutoff.", "label": "government_critical", "language": "en", "origin": "desk"}
+{"text": "The education board published the scholarship cutoff and the number of applicants.", "label": "government_neutral", "language": "en", "origin": "desk"}
+{"text": "Students who met the cutoff said their scholarship letters arrived before class began.", "label": "government_supportive", "language": "en", "origin": "desk"}
+{"text": "निगरानी समूहले प्रकाशित कटअफ पुगेका विद्यार्थी छात्रवृत्ति सूचीबाट छुटेको बतायो।", "label": "government_critical", "language": "ne", "origin": "desk"}
+{"text": "शिक्षा बोर्डले छात्रवृत्तिको कटअफ र आवेदक संख्या प्रकाशित गर्‍यो।", "label": "government_neutral", "language": "ne", "origin": "desk"}
+{"text": "कटअफ पुगेका विद्यार्थीले कक्षा सुरु हुनुअघि पत्र आएको बताए।", "label": "government_supportive", "language": "ne", "origin": "desk"}
+{"text": "Commuters said the new bus yard still has no evening service despite the announcement.", "label": "government_critical", "language": "en", "origin": "desk"}
+{"text": "The transport office printed the evening bus timetable for the new yard.", "label": "government_neutral", "language": "en", "origin": "desk"}
+{"text": "Commuters said evening buses from the new yard have been leaving on the posted times.", "label": "government_supportive", "language": "en", "origin": "desk"}
+{"text": "यात्रुले घोषणा भए पनि नयाँ बसपार्कबाट साँझको सेवा नचलेको बताए।", "label": "government_critical", "language": "ne", "origin": "desk"}
+{"text": "यातायात कार्यालयले नयाँ बसपार्कको साँझको समयतालिका छाप्यो।", "label": "government_neutral", "language": "ne", "origin": "desk"}
+{"text": "यात्रुले नयाँ बसपार्कबाट साँझको बस तालिकाअनुसार चलेको बताए।", "label": "government_supportive", "language": "ne", "origin": "desk"}

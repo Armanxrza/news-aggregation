@@ -438,6 +438,41 @@ export async function analyzeArticleFraming(
   );
 }
 
+export interface FramingPreview {
+  label: string;
+  confidence: number;
+  scores: { critical: number; neutral: number; supportive: number };
+  model: string;
+  method: string;
+  evidence: string;
+  uncertainty: string;
+}
+
+export interface FramingModelInfo {
+  model: string;
+  task: string;
+  nepal_finetuned: boolean;
+  metrics: {
+    holdout_accuracy?: number;
+    holdout_macro_f1?: number;
+    rows?: number;
+    note?: string;
+    per_label_f1?: Record<string, number>;
+  } | null;
+}
+
+export async function fetchFramingModel(): Promise<FramingModelInfo> {
+  return apiFetch<FramingModelInfo>("/api/framing/model");
+}
+
+export async function previewFraming(text: string): Promise<FramingPreview> {
+  return apiFetch<FramingPreview>("/api/framing/preview", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+}
+
 export async function resetDatabase(
   adminKey?: string | null,
 ): Promise<{ ok: boolean; message: string; sources_seeded: number; demo_articles: number }> {

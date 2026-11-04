@@ -11,7 +11,7 @@ if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
 from config import DATA_DIR, FINETUNED_MODEL_PATH
-from framing import active_model_name, analyze_government_framing
+from services.framing import active_model_name, analyze_government_framing
 
 
 def load_labels(path: Path) -> list[dict]:
@@ -40,8 +40,10 @@ def main() -> None:
     print(f"  Active model: {active_model_name()}")
     if using_finetuned:
         print(f"  Mode: Nepal-finetuned weights ({FINETUNED_MODEL_PATH})")
+    elif active_model_name() == "framing-desk-v1":
+        print("  Mode: desk classifier on curated EN/NE labels (not a claim of full-news understanding)")
     else:
-        print("  Mode: multilingual pretrained NLI (not Nepal-finetuned)")
+        print("  Mode: multilingual pretrained NLI or lexical fallback")
 
     correct = 0
     skipped = 0

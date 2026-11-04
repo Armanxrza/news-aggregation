@@ -2,23 +2,34 @@ import Link from "next/link";
 import {
   fetchAnalyticsOverview,
   fetchCoverageDistribution,
+  fetchFramingModel,
   fetchStories,
   fetchStoryDetail,
 } from "@/lib/api";
 import { GlobalFramingDistribution } from "@/components/GlobalFramingDistribution";
+import { FramingPreviewForm } from "@/components/FramingPreview";
 
 export default async function BiasExplorerPage() {
   let distribution: Awaited<ReturnType<typeof fetchCoverageDistribution>> | null = null;
   let analytics: Awaited<ReturnType<typeof fetchAnalyticsOverview>> | null = null;
   let sampleStories: Awaited<ReturnType<typeof fetchStories>>["items"] = [];
   let error = false;
+  let modelNote: string | null = null;
 
   try {
-    const [dist, overview, storiesPage] = await Promise.all([
+    const [dist, overview, storiesPage, modelInfo] = await Promise.all([
       fetchCoverageDistribution(),
       fetchAnalyticsOverview(),
       fetchStories({ limit: 8, min_sources: 2 }),
+      fetchFramingModel().catch(() => null),
     ]);
+    if (modelInfo?.metrics?.holdout_macro_f1 != null) {
+      const f1 = Math.round(modelInfo.metrics.holdout_macro_f1 * 100);
+      const acc = Math.round((modelInfo.metrics.holdout_accuracy ?? 0) * 100);
+      modelNote = `${modelInfo.model} · cross-validated accuracy ${acc}% · macro F1 ${f1}% on ${modelInfo.metrics.rows ?? "the"} curated labels`;
+    } else if (modelInfo) {
+      modelNote = modelInfo.model;
+    }
     distribution = dist;
     analytics = overview;
     sampleStories = storiesPage.items;
@@ -57,7 +68,10 @@ export default async function BiasExplorerPage() {
           desk text classifier blended with quoted wording. It does not understand every article,
           and it is not a Nepal-wide trained political oracle.
         </p>
+        {modelNote && <p className="text-xs uppercase tracking-wide text-foreground/50">{modelNote}</p>}
       </header>
+
+      <FramingPreviewForm />
 
       {error ? (
         <p className="text-sm text-accent">Could not load framing data.</p>
