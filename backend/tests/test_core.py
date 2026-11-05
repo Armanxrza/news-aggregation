@@ -177,6 +177,214 @@ def test_api_health_and_seed_shape():
     assert "framing" in analytics.json()
 
 
+def test_same_event_rejects_unrelated_nepali_headlines():
+    from services.same_event import focus_coverage, same_event
+
+    water = "तीन महिनामा खानेपानीका ९२ आयोजनाको ठेक्का आह्वान"
+    water_long = "तीन महिनामै खानेपानीका ९२ आयोजनाको ठेक्का आह्वान, १३ लाख नागरिक लाभान्वित हुने"
+    texas = (
+        "टेक्सासमा डेमोक्रेटहरूको अप्रत्याशित जितपछि इलोन मस्कको साम्राज्यमा धक्का, "
+        "कम्पनीहरूको १२० अर्ब डलर स्वाहा"
+    )
+    women = "महिला, निरक्षर मानिस र ज्येष्ठ नागरिकसम्म कसरी पुग्छ पूर्वसूचना"
+    assert same_event(water, water_long)
+    assert not same_event(water, texas)
+    assert not same_event(water_long, women)
+    assert not same_event(texas, women)
+
+    class Row:
+        def __init__(self, headline: str, source_id: int):
+            self.original_headline = headline
+            self.source_id = source_id
+
+    kept, meta = focus_coverage(
+        [
+            Row(water, 1),
+            Row(texas, 2),
+            Row(water_long, 3),
+            Row(water, 4),
+            Row(women, 5),
+        ],
+        water,
+        "embedding",
+    )
+    assert [row.source_id for row in kept] == [1, 3, 4]
+    assert meta["omitted"] == 2
+    assert meta["coverage_sufficient"] is True
+
+
+def test_seeded_paraphrases_stay_together_when_not_embedding_merged():
+    from services.same_event import focus_coverage
+
+    class Row:
+        def __init__(self, headline: str, source_id: int):
+            self.original_headline = headline
+            self.source_id = source_id
+
+    headlines = [
+        "Nepal Rastra Bank keeps policy rate unchanged at 6.5 percent",
+        "NRB holds rates steady as inflation stays within comfort zone",
+        "नेपाल राष्ट्र बैंकले नीतिगत दर यथावत् ६.५ प्रतिशतमै राख्यो",
+        "राष्ट्र बैंकले ब्याजदर नबढाउने निर्णय गर्‍यो",
+    ]
+    kept, meta = focus_coverage(
+        [Row(headline, index + 1) for index, headline in enumerate(headlines)],
+        headlines[0],
+        "new_story",
+    )
+    assert len(kept) == 4
+    assert meta["omitted"] == 0
+    assert meta["coverage_sufficient"] is True
+
+
+def test_clustering_does_not_merge_unrelated_events():
+    db = SessionLocal()
+    try:
+        water, _ = get_or_create_story(
+            db,
+            "तीन महिनामा खानेपानीका ९२ आयोजनाको ठेक्का आह्वान",
+            category="Nepal",
+            language="ne",
+        )
+        texas, texas_meta = get_or_create_story(
+            db,
+            "टेक्सासमा डेमोक्रेटहरूको अप्रत्याशित जितपछि इलोन मस्कको साम्राज्यमा धक्का",
+            category="Nepal",
+            language="ne",
+        )
+        again, again_meta = get_or_create_story(
+            db,
+            "तीन महिनामै खानेपानीका ९२ आयोजनाको ठेक्का आह्वान, १३ लाख नागरिक लाभान्वित हुने",
+            category="Nepal",
+            language="ne",
+        )
+        assert texas.id != water.id
+        assert texas_meta["matched"] is False
+        assert again.id == water.id
+        assert again_meta["matched"] is True
+        assert again_meta["method"] == "same_event"
+    finally:
+        db.close()
+
+
+def test_story_detail_drops_unrelated_coverage_and_passage_lookup():
+    import importlib
+    import main as main_mod
+
+    importlib.reload(database)
+    importlib.reload(main_mod)
+    client = TestClient(main_mod.app)
+
+    db = SessionLocal()
+    try:
+        outlets = []
+        for name, domain in (
+            ("Clickmandu", "clickmandu.example"),
+            ("Nagarik News", "nagarik.example"),
+            ("BBC Nepali", "bbc-nepali.example"),
+            ("Setopati", "setopati.example"),
+        ):
+            source = Source(name=name, domain=domain, language="ne", is_active=True)
+            db.add(source)
+            db.flush()
+            outlets.append(source)
+        story = Story(
+            ai_headline="तीन महिनामा खानेपानीका ९२ आयोजनाको ठेक्का आह्वान",
+            topic="Nepal",
+            cluster_method="embedding",
+        )
+        db.add(story)
+        db.flush()
+        rows = [
+            (outlets[0], "तीन महिनामा खानेपानीका ९२ आयोजनाको ठेक्का आह्वान", "https://clickmandu.example/water"),
+            (
+                outlets[0],
+                "टेक्सासमा डेमोक्रेटहरूको अप्रत्याशित जितपछि इलोन मस्कको साम्राज्यमा धक्का, कम्पनीहरूको १२० अर्ब डलर स्वाहा",
+                "https://clickmandu.example/texas",
+            ),
+            (
+                outlets[1],
+                "तीन महिनामै खानेपानीका ९२ आयोजनाको ठेक्का आह्वान, १३ लाख नागरिक लाभान्वित हुने",
+                "https://nagarik.example/water",
+            ),
+            (outlets[2], "तीन महिनामा खानेपानीका ९२ आयोजनाको ठेक्का आह्वान", "https://bbc-nepali.example/water"),
+            (
+                outlets[3],
+                "महिला, निरक्षर मानिस र ज्येष्ठ नागरिकसम्म कसरी पुग्छ पूर्वसूचना",
+                "https://setopati.example/women",
+            ),
+        ]
+        for source, headline, url in rows:
+            db.add(
+                Article(
+                    source_id=source.id,
+                    story_id=story.id,
+                    original_headline=headline,
+                    url=url,
+                    content_text=headline,
+                    language="ne",
+                    government_framing="government_neutral",
+                    framing_scores_json='{"critical": 0.16, "neutral": 0.62, "supportive": 0.22}',
+                )
+            )
+        db.commit()
+        story_id = story.id
+    finally:
+        db.close()
+
+    detail = client.get(f"/api/stories/{story_id}")
+    assert detail.status_code == 200
+    body = detail.json()
+    headlines = [row["headline"] for row in body["headline_comparison"]]
+    assert len(headlines) == 3
+    assert all("खानेपानी" in headline for headline in headlines)
+    assert body["omitted_unrelated"] == 2
+    assert body["coverage_sufficient"] is True
+    assert body["source_count"] == 3
+    assert "Setopati" not in body["sources"]
+
+    unrelated = client.post(
+        "/api/framing/preview",
+        json={"text": "टेक्सासमा डेमोक्रेटहरूको अप्रत्याशित जितपछि इलोन मस्कको साम्राज्यमा धक्का"},
+    )
+    assert unrelated.status_code == 200
+    unrelated_body = unrelated.json()
+    assert unrelated_body["coverage_sufficient"] is False
+    assert unrelated_body["scores"] is None
+    assert unrelated_body["story_id"] is None
+    assert "Clickmandu" in unrelated_body["sources"]
+    assert "BBC Nepali" not in unrelated_body["sources"]
+
+    missing = client.post(
+        "/api/framing/preview",
+        json={"text": "A completely different city council vote in Oslo about tram fares."},
+    )
+    assert missing.status_code == 200
+    assert missing.json()["found"] is False
+    assert missing.json()["message"] == "The news coverage is not found. Please paste the news link."
+
+    found = client.post(
+        "/api/framing/preview",
+        json={"text": "तीन महिनामा खानेपानीका ९२ आयोजनाको ठेक्का आह्वान"},
+    )
+    assert found.status_code == 200
+    found_body = found.json()
+    assert found_body["found"] is True
+    assert found_body["story_id"] == story_id
+    assert found_body["coverage_sufficient"] is True
+    assert found_body["source_count"] == 3
+    assert set(found_body["sources"]) == {"Clickmandu", "Nagarik News", "BBC Nepali"}
+    assert found_body["scores"]["neutral"] > found_body["scores"]["critical"]
+
+    by_link = client.post(
+        "/api/framing/preview",
+        json={"text": "Please rate https://nagarik.example/water"},
+    )
+    assert by_link.status_code == 200
+    assert by_link.json()["found"] is True
+    assert by_link.json()["story_id"] == story_id
+
+
 def test_desk_classifier_splits_framing():
     from services.framing import DESK_MODEL_PATH, analyze_government_framing
 

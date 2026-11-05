@@ -48,6 +48,9 @@ export interface StoryDTO {
   framing_counts: FramingCounts;
   cluster_method: string | null;
   cluster_confidence: number | null;
+  coverage_sufficient?: boolean;
+  omitted_unrelated?: number;
+  bias_note?: string | null;
 }
 
 export interface HeadlineComparisonRow {
@@ -439,13 +442,16 @@ export async function analyzeArticleFraming(
 }
 
 export interface FramingPreview {
-  label: string;
-  confidence: number;
-  scores: { critical: number; neutral: number; supportive: number };
-  model: string;
-  method: string;
-  evidence: string;
-  uncertainty: string;
+  found: boolean;
+  message: string;
+  story_id: number | null;
+  headline: string | null;
+  sources: string[];
+  source_count: number;
+  coverage_sufficient: boolean;
+  omitted_unrelated: number;
+  label: string | null;
+  scores: { critical: number; neutral: number; supportive: number } | null;
 }
 
 export interface FramingModelInfo {

@@ -27,7 +27,15 @@ function povLabel(pov: string) {
   return "Neutral";
 }
 
-export function CoverageComparison({ articles }: { articles: ArticleDTO[] }) {
+export function CoverageComparison({
+  articles,
+  coverageSufficient = true,
+  biasNote,
+}: {
+  articles: ArticleDTO[];
+  coverageSufficient?: boolean;
+  biasNote?: string | null;
+}) {
   const [selected, setSelected] = useState<PovKey>("all");
 
   const counts = useMemo(() => {
@@ -54,14 +62,20 @@ export function CoverageComparison({ articles }: { articles: ArticleDTO[] }) {
         <span className="text-xs text-foreground/50">{articles.length} outlets</span>
       </div>
 
-      <BiasBar
-        critical={counts.critical}
-        neutral={counts.neutral}
-        supportive={counts.supportive}
-        left={0}
-        center={0}
-        right={0}
-      />
+      {coverageSufficient ? (
+        <BiasBar
+          critical={counts.critical}
+          neutral={counts.neutral}
+          supportive={counts.supportive}
+          left={0}
+          center={0}
+          right={0}
+        />
+      ) : (
+        <p className="text-sm text-foreground/70">
+          {biasNote || "Not enough related coverage to show bias."}
+        </p>
+      )}
 
       <div className="flex flex-wrap gap-x-4 gap-y-2 border-b border-foreground/15">
         {(Object.keys(tabs) as PovKey[]).map((key) => (

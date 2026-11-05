@@ -33,6 +33,7 @@ from database import (
 )
 from services.claims import analyze_article_claims
 from services.clustering import recluster_all
+from services.same_event import event_score, focus_coverage
 from services.bias import analyze_political_bias
 from services.framing import (
     active_model_name,
@@ -228,8 +229,14 @@ def _ensure_article_bias(article: Any, *, persist: bool = False, lexical_only: b
     return label
 
 
-def story_to_dto(story: Story, articles: list[Article] | None = None) -> dict[str, Any]:
+def story_to_dto(
+    story: Story,
+    articles: list[Article] | None = None,
+    meta: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     articles = articles if articles is not None else list(story.articles or [])
+    if meta is None:
+        articles, meta = focus_coverage(articles, story.ai_headline, story.cluster_method)
     sources = sorted({a.source.name for a in articles if a.source})
     languages = sorted({
         (a.language or a.detected_language or (a.source.language if a.source else None) or "unknown")
@@ -261,22 +268,23 @@ def story_to_dto(story: Story, articles: list[Article] | None = None) -> dict[st
     gov_pcts = framing_to_bias_pcts(score_rows)
     framing_counts = framing_counts_for_articles(articles)
 
-    return {
+    coverage_sufficient = bool(meta.get("coverage_sufficient"))
+    payload = {
         "id": story.id,
-        "ai_headline": story.ai_headline,
+        "ai_headline": meta.get("headline") or story.ai_headline,
         "ai_summary": story.ai_summary,
         "topic": story.topic,
         # Mapped: left=Critical of gov, center=Neutral, right=Supportive of gov
-        "bias_left_pct": gov_pcts["bias_left_pct"],
-        "bias_center_pct": gov_pcts["bias_center_pct"],
-        "bias_right_pct": gov_pcts["bias_right_pct"],
+        "bias_left_pct": gov_pcts["bias_left_pct"] if coverage_sufficient else None,
+        "bias_center_pct": gov_pcts["bias_center_pct"] if coverage_sufficient else None,
+        "bias_right_pct": gov_pcts["bias_right_pct"] if coverage_sufficient else None,
         "bias_axis": "government_pov",
         "gov_counts": {
-            "critical": gov_pcts["gov_critical"],
-            "neutral": gov_pcts["gov_neutral"],
-            "supportive": gov_pcts["gov_supportive"],
+            "critical": gov_pcts["gov_critical"] if coverage_sufficient else 0,
+            "neutral": gov_pcts["gov_neutral"] if coverage_sufficient else 0,
+            "supportive": gov_pcts["gov_supportive"] if coverage_sufficient else 0,
         },
-        "source_bias": source_bias[:8],
+        "source_bias": source_bias[:8] if coverage_sufficient else [],
         "created_at": (latest or story.created_at).isoformat() if (latest or story.created_at) else None,
         "source_count": len({a.source_id for a in articles}),
         "article_count": len(articles),
@@ -286,7 +294,11 @@ def story_to_dto(story: Story, articles: list[Article] | None = None) -> dict[st
         "framing_counts": framing_counts,
         "cluster_method": story.cluster_method,
         "cluster_confidence": story.cluster_confidence,
+        "coverage_sufficient": coverage_sufficient,
+        "omitted_unrelated": int(meta.get("omitted") or 0),
+        "bias_note": meta.get("bias_note"),
     }
+    return payload
 
 
 def article_to_dto(article: Article) -> dict[str, Any]:
@@ -633,18 +645,6 @@ def list_stories(
             ]
             if not rows:
                 continue
-        if search_l:
-            hay = " ".join(
-                [story.ai_headline or ""]
-                + [r.original_headline or "" for r in rows]
-            ).casefold()
-            if search_l not in hay:
-                continue
-        source_ids = {r.source_id for r in rows}
-        if len(source_ids) < min_sources:
-            continue
-
-        # Build a lightweight article-like view for DTO helper
         class _A:
             pass
 
@@ -666,7 +666,20 @@ def list_stories(
             a.source = src
             articles_proxy.append(a)
 
-        dto = story_to_dto(story, articles_proxy)
+        articles_proxy, meta = focus_coverage(
+            articles_proxy, story.ai_headline, story.cluster_method
+        )
+        if search_l:
+            hay = " ".join(
+                [meta.get("headline") or story.ai_headline or ""]
+                + [getattr(a, "original_headline", "") or "" for a in articles_proxy]
+            ).casefold()
+            if search_l not in hay:
+                continue
+        if len({a.source_id for a in articles_proxy}) < min_sources:
+            continue
+
+        dto = story_to_dto(story, articles_proxy, meta)
         results.append(dto)
 
     def _nepal_rank(s: dict[str, Any]) -> int:
@@ -723,7 +736,8 @@ def get_story(story_id: int, db: Session = Depends(get_db)):
         key=lambda a: a.published_at or datetime.datetime.min,
         reverse=True,
     )
-    dto = story_to_dto(story, articles)
+    articles, meta = focus_coverage(articles, story.ai_headline, story.cluster_method)
+    dto = story_to_dto(story, articles, meta)
     dto["articles"] = [article_to_dto(a) for a in articles]
 
     # Headline comparison matrix
@@ -746,8 +760,11 @@ def get_story(story_id: int, db: Session = Depends(get_db)):
     dto["headline_comparison"] = comparison
     db.commit()
 
+    kept_ids = {a.id for a in articles}
     claims = db.query(Claim).filter(Claim.story_id == story_id).all()
-    dto["claims"] = [claim_to_dto(c) for c in claims]
+    dto["claims"] = [
+        claim_to_dto(c) for c in claims if c.article_id in kept_ids
+    ]
 
     # Coverage gap: outlets in registry not covering this story
     covering = {a.source_id for a in articles}
@@ -894,14 +911,119 @@ def framing_model_info():
     }
 
 
+def _lookup_article(db: Session, text: str) -> Article | None:
+    urls = re.findall(r"https?://[^\s<>\"']+", text)
+    for raw in urls:
+        url = raw.rstrip(".,);]")
+        hit = (
+            db.query(Article)
+            .options(joinedload(Article.source), joinedload(Article.story))
+            .filter(Article.url == url)
+            .first()
+        )
+        if hit:
+            return hit
+    rows = (
+        db.query(Article)
+        .options(joinedload(Article.source), joinedload(Article.story))
+        .order_by(Article.id.desc())
+        .limit(2500)
+        .all()
+    )
+    best: Article | None = None
+    best_score = 0.0
+    for article in rows:
+        score = event_score(text, article.original_headline or "")
+        if score > best_score:
+            best_score = score
+            best = article
+    return best
+
+
 @app.post("/api/framing/preview")
-def framing_preview(payload: FramingPreviewIn):
+def framing_preview(payload: FramingPreviewIn, db: Session = Depends(get_db)):
     text = (payload.text or "").strip()
     if len(text) < 12:
         raise HTTPException(400, "Enter at least a short sentence.")
     if len(text) > 4000:
         raise HTTPException(400, "Text is too long for a preview.")
-    return analyze_government_framing(text)
+
+    missing = {
+        "found": False,
+        "message": "The news coverage is not found. Please paste the news link.",
+        "story_id": None,
+        "headline": None,
+        "sources": [],
+        "source_count": 0,
+        "coverage_sufficient": False,
+        "omitted_unrelated": 0,
+        "label": None,
+        "scores": None,
+    }
+    article = _lookup_article(db, text)
+    if article is None or article.story_id is None:
+        return missing
+
+    story = (
+        db.query(Story)
+        .options(joinedload(Story.articles).joinedload(Article.source))
+        .filter(Story.id == article.story_id)
+        .first()
+    )
+    if story is None:
+        return missing
+
+    focused, meta = focus_coverage(list(story.articles or []), story.ai_headline, story.cluster_method)
+    if not focused:
+        return missing
+    if article.id not in {item.id for item in focused}:
+        source_name = article.source.name if article.source else None
+        return {
+            "found": True,
+            "message": "The news is in the desk. Not enough related coverage to show bias.",
+            "story_id": None,
+            "headline": article.original_headline,
+            "sources": [source_name] if source_name else [],
+            "source_count": 1,
+            "coverage_sufficient": False,
+            "omitted_unrelated": 0,
+            "label": None,
+            "scores": None,
+        }
+
+    score_rows: list[dict[str, float]] = []
+    labels: list[str] = []
+    for item in focused:
+        label, scores = _ensure_article_framing(item, persist=False)
+        labels.append(label)
+        score_rows.append(scores)
+    sources = sorted({item.source.name for item in focused if item.source})
+    sufficient = bool(meta.get("coverage_sufficient"))
+    if sufficient:
+        pcts = framing_to_bias_pcts(score_rows)
+        label = max(set(labels), key=labels.count) if labels else None
+        message = "The news is in the desk. This is the rating from the outlets on that story."
+        scores_out = {
+            "critical": pcts["bias_left_pct"],
+            "neutral": pcts["bias_center_pct"],
+            "supportive": pcts["bias_right_pct"],
+        }
+    else:
+        label = None
+        scores_out = None
+        message = "The news is in the desk. Not enough related coverage to show bias."
+    return {
+        "found": True,
+        "message": message,
+        "story_id": story.id,
+        "headline": meta.get("headline") or story.ai_headline,
+        "sources": sources,
+        "source_count": len({item.source_id for item in focused}),
+        "coverage_sufficient": sufficient,
+        "omitted_unrelated": int(meta.get("omitted") or 0),
+        "label": label,
+        "scores": scores_out,
+    }
 
 
 @app.post("/api/articles/{article_id}/analyze-framing")

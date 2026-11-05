@@ -19,6 +19,8 @@ export type StoryCardData = Pick<
   | "bias_right_pct"
   | "gov_counts"
   | "source_bias"
+  | "coverage_sufficient"
+  | "bias_note"
 >;
 
 function povClass(pov: string) {
@@ -48,8 +50,17 @@ export function StoryCard({
     </div>
   );
 
+  const framing =
+    story.coverage_sufficient === false ? (
+      <p className="text-xs text-foreground/55">
+        {story.bias_note || "Not enough related coverage to show bias."}
+      </p>
+    ) : (
+      <BiasBar left={critical} center={neutral} right={supportive} className="max-w-md" compact={!featured} />
+    );
+
   const outlets =
-    story.source_bias && story.source_bias.length > 0 ? (
+    story.coverage_sufficient !== false && story.source_bias && story.source_bias.length > 0 ? (
       <p className="text-[11px] leading-relaxed text-foreground/60">
         {story.source_bias.slice(0, 4).map((s, index) => (
           <span key={s.source} className={povClass(s.pov)}>
@@ -86,7 +97,7 @@ export function StoryCard({
             {story.ai_headline}
           </h2>
           {outlets}
-          <BiasBar left={critical} center={neutral} right={supportive} className="max-w-md" />
+          {framing}
         </div>
         {image}
       </Link>
@@ -109,13 +120,7 @@ export function StoryCard({
           {story.ai_headline}
         </h2>
         {outlets}
-        <BiasBar
-          className="mt-0.5 max-w-sm"
-          left={critical}
-          center={neutral}
-          right={supportive}
-          compact
-        />
+        {framing}
       </div>
     </Link>
   );

@@ -66,19 +66,35 @@ export default async function StoryPage({
             <p className="text-[11px] font-semibold uppercase tracking-widest text-foreground/50">
               Government framing
             </p>
-            <BiasBar
-              left={story.bias_left_pct}
-              center={story.bias_center_pct}
-              right={story.bias_right_pct}
-              critical={story.gov_counts?.critical}
-              neutral={story.gov_counts?.neutral}
-              supportive={story.gov_counts?.supportive}
-            />
+            {story.coverage_sufficient === false ? (
+              <p className="text-sm text-foreground/70">
+                {story.bias_note || "Not enough related coverage to show bias."}
+              </p>
+            ) : (
+              <BiasBar
+                left={story.bias_left_pct}
+                center={story.bias_center_pct}
+                right={story.bias_right_pct}
+                critical={story.gov_counts?.critical}
+                neutral={story.gov_counts?.neutral}
+                supportive={story.gov_counts?.supportive}
+              />
+            )}
+            {(story.omitted_unrelated ?? 0) > 0 && (
+              <p className="text-xs text-foreground/55">
+                {story.omitted_unrelated} unrelated {story.omitted_unrelated === 1 ? "headline was" : "headlines were"} left
+                out of this coverage.
+              </p>
+            )}
           </div>
         </div>
       </header>
 
-      <CoverageComparison articles={story.articles} />
+      <CoverageComparison
+        articles={story.articles}
+        coverageSufficient={story.coverage_sufficient !== false}
+        biasNote={story.bias_note}
+      />
 
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">

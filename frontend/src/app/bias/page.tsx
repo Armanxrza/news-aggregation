@@ -4,12 +4,30 @@ import {
   fetchCoverageDistribution,
   fetchFramingModel,
   fetchStories,
-  fetchStoryDetail,
+  previewFraming,
 } from "@/lib/api";
 import { GlobalFramingDistribution } from "@/components/GlobalFramingDistribution";
 import { FramingPreviewForm } from "@/components/FramingPreview";
 
-export default async function BiasExplorerPage() {
+export default async function BiasExplorerPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ passage?: string }>;
+}) {
+  const { passage: rawPassage } = await searchParams;
+  const passage = (rawPassage || "").trim();
+  let lookup: Awaited<ReturnType<typeof previewFraming>> | null = null;
+  let lookupError: string | null = null;
+  if (passage.length >= 12) {
+    try {
+      lookup = await previewFraming(passage.slice(0, 4000));
+    } catch (err) {
+      lookupError = err instanceof Error ? err.message : "Could not check that passage.";
+    }
+  } else if (passage.length > 0) {
+    lookupError = "Enter at least a short sentence.";
+  }
+
   let distribution: Awaited<ReturnType<typeof fetchCoverageDistribution>> | null = null;
   let analytics: Awaited<ReturnType<typeof fetchAnalyticsOverview>> | null = null;
   let sampleStories: Awaited<ReturnType<typeof fetchStories>>["items"] = [];
@@ -37,28 +55,6 @@ export default async function BiasExplorerPage() {
     error = true;
   }
 
-  const signalSamples: { headline: string; source: string; signals: Record<string, unknown> }[] =
-    [];
-
-  for (const story of sampleStories) {
-    try {
-      const detail = await fetchStoryDetail(story.id);
-      for (const article of detail.articles) {
-        if (article.signals && Object.keys(article.signals).length > 0) {
-          signalSamples.push({
-            headline: article.original_headline,
-            source: article.source_name,
-            signals: article.signals,
-          });
-          if (signalSamples.length >= 12) break;
-        }
-      }
-      if (signalSamples.length >= 12) break;
-    } catch {
-      /* skip */
-    }
-  }
-
   return (
     <div className="space-y-10">
       <header className="space-y-3">
@@ -71,7 +67,7 @@ export default async function BiasExplorerPage() {
         {modelNote && <p className="text-xs uppercase tracking-wide text-foreground/50">{modelNote}</p>}
       </header>
 
-      <FramingPreviewForm />
+      <FramingPreviewForm passage={passage} result={lookup} error={lookupError} />
 
       {error ? (
         <p className="text-sm text-accent">Could not load framing data.</p>
@@ -81,15 +77,13 @@ export default async function BiasExplorerPage() {
             <h2 className="font-serif text-lg font-semibold text-foreground">Methodology</h2>
             <ol className="list-decimal space-y-2 pl-5">
               <li>
-                Articles are clustered into stories by headline similarity.
+                Outlets stay on one story only when the headlines are the same event. A different
+                event is left out. If fewer than two outlets remain, the page does not draw a bias bar.
               </li>
               <li>
                 Government framing is a three-way division (critical, neutral, supportive). A desk
                 text classifier is blended with quoted wording from the article. When the text is
                 too thin, the article stays unclassified or is marked insufficient evidence.
-              </li>
-              <li>
-                Loaded-language signals appear only when that article record already contains them.
               </li>
               <li>
                 Registry perspective labels default to &ldquo;not independently rated.&rdquo;
@@ -113,34 +107,6 @@ export default async function BiasExplorerPage() {
               </p>
             </section>
           )}
-
-          <section className="space-y-4">
-            <h2 className="font-serif text-lg font-semibold">Loaded-language signals (samples)</h2>
-            <p className="text-sm text-foreground/55">
-              Pulled from real article <code className="text-xs">signals</code> JSON when present —
-              not invented scores.
-            </p>
-            {signalSamples.length === 0 ? (
-              <p className="text-sm text-foreground/55">
-                No signal payloads in recent multi-source stories yet. Run framing analysis from
-                Admin after crawl.
-              </p>
-            ) : (
-              <ul className="grid gap-3 lg:grid-cols-2">
-                {signalSamples.map((s, i) => (
-                  <li key={`${s.source}-${i}`} className="border border-border bg-surface p-4 text-sm">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-foreground/55">
-                      {s.source}
-                    </p>
-                    <p className="mt-1 font-medium leading-snug">{s.headline}</p>
-                    <pre className="mt-2 max-h-32 overflow-auto border border-border bg-background p-2 font-sans text-[11px] text-foreground/60">
-                      {JSON.stringify(s.signals, null, 2)}
-                    </pre>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
 
           <section className="space-y-3">
             <h2 className="font-serif text-lg font-semibold">Explore stories</h2>
