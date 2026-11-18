@@ -9,6 +9,11 @@ import {
   fetchCrawlRuns,
   fetchSources,
   fetchStats,
+  mergeStories,
+  splitStory,
+  moveArticle,
+  correctStoryMetadata,
+  correctArticleStance,
   getStoredAdminKey,
   resetDatabase,
   setStoredAdminKey,
@@ -67,6 +72,19 @@ export default function AdminPanel() {
   const [crawlState, setCrawlState] = useState<"idle" | "running" | "done" | "error">("idle");
   const [resetLoading, setResetLoading] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [mergeSourceId, setMergeSourceId] = useState("");
+  const [mergeTargetId, setMergeTargetId] = useState("");
+  const [splitStoryId, setSplitStoryId] = useState("");
+  const [splitArticleIds, setSplitArticleIds] = useState("");
+  const [moveArticleId, setMoveArticleId] = useState("");
+  const [moveTargetId, setMoveTargetId] = useState("");
+  const [correctStoryId, setCorrectStoryId] = useState("");
+  const [correctHeadline, setCorrectHeadline] = useState("");
+  const [correctSummary, setCorrectSummary] = useState("");
+  const [correctArticleId, setCorrectArticleId] = useState("");
+  const [correctStance, setCorrectStance] = useState<"government_critical" | "government_neutral" | "government_supportive">("government_neutral");
+  const [correctionEvidence, setCorrectionEvidence] = useState("");
+  const [correctionNote, setCorrectionNote] = useState("");
 
   useEffect(() => {
     setAdminKey(getStoredAdminKey());
@@ -196,6 +214,17 @@ export default function AdminPanel() {
     }
   };
 
+  const handleCorrection = async (operation: () => Promise<unknown>, success: string) => {
+    try {
+      await operation();
+      toast("success", success);
+      setCorrectionNote("");
+      refreshData();
+    } catch (err: unknown) {
+      toast("error", err instanceof Error ? err.message : "Correction failed.");
+    }
+  };
+
   const figures: { label: string; value: number | string }[] = [
     { label: "Stories", value: stats?.total_stories ?? "—" },
     { label: "Articles", value: stats?.total_articles ?? "—" },
@@ -282,6 +311,100 @@ export default function AdminPanel() {
             </div>
           ))}
         </dl>
+      </section>
+
+      <section className="space-y-4 border border-border bg-surface p-5">
+        <div>
+          <h2 className="font-semibold">Story corrections</h2>
+          <p className="mt-1 text-xs text-foreground/55">Corrections are recorded for review. Use IDs from story links and article details.</p>
+        </div>
+        <input
+          value={correctionNote}
+          onChange={(e) => setCorrectionNote(e.target.value)}
+          placeholder="Correction note (optional)"
+          className={fieldClass}
+        />
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <form className="space-y-2 border border-border p-3" onSubmit={(e) => {
+            e.preventDefault();
+            void handleCorrection(
+              () => mergeStories(Number(mergeSourceId), Number(mergeTargetId), correctionNote, adminKey),
+              "Stories merged and correction recorded.",
+            );
+          }}>
+            <h3 className="text-sm font-semibold">Merge stories</h3>
+            <input required type="number" min="1" value={mergeSourceId} onChange={(e) => setMergeSourceId(e.target.value)} placeholder="Story ID to move" className={fieldClass} />
+            <input required type="number" min="1" value={mergeTargetId} onChange={(e) => setMergeTargetId(e.target.value)} placeholder="Target story ID" className={fieldClass} />
+            <button className="border border-foreground px-3 py-1.5 text-xs font-semibold">Merge</button>
+          </form>
+
+          <form className="space-y-2 border border-border p-3" onSubmit={(e) => {
+            e.preventDefault();
+            const ids = splitArticleIds.split(",").map((id) => Number(id.trim())).filter((id) => Number.isInteger(id) && id > 0);
+            void handleCorrection(
+              () => splitStory(Number(splitStoryId), ids, correctionNote, adminKey),
+              "Articles split into a new story.",
+            );
+          }}>
+            <h3 className="text-sm font-semibold">Split articles</h3>
+            <input required type="number" min="1" value={splitStoryId} onChange={(e) => setSplitStoryId(e.target.value)} placeholder="Current story ID" className={fieldClass} />
+            <input required value={splitArticleIds} onChange={(e) => setSplitArticleIds(e.target.value)} placeholder="Article IDs, comma separated" className={fieldClass} />
+            <button className="border border-foreground px-3 py-1.5 text-xs font-semibold">Split out</button>
+          </form>
+
+          <form className="space-y-2 border border-border p-3" onSubmit={(e) => {
+            e.preventDefault();
+            void handleCorrection(
+              () => moveArticle(Number(moveArticleId), Number(moveTargetId), correctionNote, adminKey),
+              "Article moved and correction recorded.",
+            );
+          }}>
+            <h3 className="text-sm font-semibold">Move an article</h3>
+            <input required type="number" min="1" value={moveArticleId} onChange={(e) => setMoveArticleId(e.target.value)} placeholder="Article ID" className={fieldClass} />
+            <input required type="number" min="1" value={moveTargetId} onChange={(e) => setMoveTargetId(e.target.value)} placeholder="Target story ID" className={fieldClass} />
+            <button className="border border-foreground px-3 py-1.5 text-xs font-semibold">Move article</button>
+          </form>
+
+          <form className="space-y-2 border border-border p-3" onSubmit={(e) => {
+            e.preventDefault();
+            if (!correctHeadline.trim() && !correctSummary.trim()) {
+              toast("error", "Enter a corrected title or summary.");
+              return;
+            }
+            void handleCorrection(
+              () => correctStoryMetadata(Number(correctStoryId), {
+                ...(correctHeadline.trim() ? { ai_headline: correctHeadline.trim() } : {}),
+                ...(correctSummary.trim() ? { ai_summary: correctSummary.trim() } : {}),
+                note: correctionNote,
+              }, adminKey),
+              "Story metadata corrected.",
+            );
+          }}>
+            <h3 className="text-sm font-semibold">Correct story title or summary</h3>
+            <input required type="number" min="1" value={correctStoryId} onChange={(e) => setCorrectStoryId(e.target.value)} placeholder="Story ID" className={fieldClass} />
+            <input value={correctHeadline} onChange={(e) => setCorrectHeadline(e.target.value)} placeholder="Corrected title" className={fieldClass} />
+            <textarea value={correctSummary} onChange={(e) => setCorrectSummary(e.target.value)} placeholder="Evidence-based summary" rows={2} className={fieldClass} />
+            <button className="border border-foreground px-3 py-1.5 text-xs font-semibold">Save metadata</button>
+          </form>
+
+          <form className="space-y-2 border border-border p-3" onSubmit={(e) => {
+            e.preventDefault();
+            void handleCorrection(
+              () => correctArticleStance(Number(correctArticleId), correctStance, correctionEvidence, correctionNote, adminKey),
+              "Article stance corrected and saved as reviewed feedback.",
+            );
+          }}>
+            <h3 className="text-sm font-semibold">Correct article stance</h3>
+            <input required type="number" min="1" value={correctArticleId} onChange={(e) => setCorrectArticleId(e.target.value)} placeholder="Article ID" className={fieldClass} />
+            <select value={correctStance} onChange={(e) => setCorrectStance(e.target.value as typeof correctStance)} className={fieldClass}>
+              <option value="government_critical">Critical</option>
+              <option value="government_neutral">Neutral</option>
+              <option value="government_supportive">Supportive</option>
+            </select>
+            <textarea required value={correctionEvidence} onChange={(e) => setCorrectionEvidence(e.target.value)} placeholder="Evidence for this correction" rows={2} className={fieldClass} />
+            <button className="border border-foreground px-3 py-1.5 text-xs font-semibold">Save stance</button>
+          </form>
+        </div>
       </section>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">

@@ -9,6 +9,13 @@ from pathlib import Path
 
 from config import DATA_DIR
 
+ENTITY_TYPE_MAP = {
+    "parties": "party",
+    "institutions": "institution",
+    "places": "place",
+    "people": "person",
+}
+
 # Built-in lexicon — also loadable/extendable from data/nepal_entities.json
 DEFAULT_ENTITIES = {
     "parties": [
@@ -104,7 +111,7 @@ def extract_entities(text: str) -> list[dict]:
                     seen.add(canonical)
                     found.append({
                         "name": canonical,
-                        "type": kind.rstrip("s") if kind.endswith("s") else kind,
+                        "type": ENTITY_TYPE_MAP.get(kind, kind.rstrip("s") if kind.endswith("s") else kind),
                         "matched_alias": alias,
                     })
                     break

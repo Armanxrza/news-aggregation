@@ -48,6 +48,23 @@ export interface StoryDTO {
   framing_counts: FramingCounts;
   cluster_method: string | null;
   cluster_confidence: number | null;
+  cluster_relationship?: string | null;
+  cluster_evidence?: {
+    relationship?: string;
+    evidence?: string[];
+    signals?: Record<string, unknown>;
+  };
+  event_identity?: {
+    action: string | null;
+    actors: string[];
+    locations: string[];
+    objects: string[];
+    time_markers: string[];
+  };
+  related_story_ids?: number[];
+  related_stories?: { id: number; ai_headline: string; topic: string | null }[];
+  source_diversity?: { independent_sources: number; syndicated_articles: number };
+  importance_score?: number;
   coverage_sufficient?: boolean;
   omitted_unrelated?: number;
   bias_note?: string | null;
@@ -87,6 +104,13 @@ export interface StoryDetailDTO extends StoryDTO {
   claims: ClaimDTO[];
   coverage_gap: CoverageGapOutlet[];
   methodology_note: string;
+  timeline: {
+    headline: string;
+    source: string;
+    url: string;
+    published_at: string | null;
+    is_syndicated_duplicate: boolean;
+  }[];
 }
 
 export interface ArticleDTO {
@@ -110,9 +134,29 @@ export interface ArticleDTO {
   framing_model: string | null;
   framing_evidence: string | null;
   framing_method: string | null;
-  entities: string[];
+  framing_scores?: Record<string, number> | null;
+  entities: (string | { name?: string; type?: string; [key: string]: unknown })[];
   topics: string[];
   signals: Record<string, unknown>;
+  editorial_context?: {
+    version?: string;
+    emotions?: {
+      emotion: string;
+      speaker: string;
+      target: string | null;
+      evidence: string;
+      attributed: boolean;
+      confidence: string;
+    }[];
+    overall_tone?: string;
+    sensationalism_signal?: "possible" | "not_detected";
+    sensational_words?: string[];
+    method?: string;
+    notice?: string;
+  };
+  duplicate_kind?: string | null;
+  is_syndicated_duplicate?: boolean;
+  analysis_status?: string | null;
 }
 
 export interface SourceDTO {
@@ -477,6 +521,66 @@ export async function previewFraming(text: string): Promise<FramingPreview> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text }),
   });
+}
+
+export async function mergeStories(
+  source_story_id: number,
+  target_story_id: number,
+  note: string,
+  adminKey?: string | null,
+): Promise<{ moved_articles: number; target_story_id: number }> {
+  return adminFetch("/api/stories/merge", {
+    method: "POST",
+    body: JSON.stringify({ source_story_id, target_story_id, note }),
+  }, adminKey);
+}
+
+export async function splitStory(
+  story_id: number,
+  article_ids: number[],
+  note: string,
+  adminKey?: string | null,
+): Promise<{ new_story_id: number; article_ids: number[] }> {
+  return adminFetch("/api/stories/split", {
+    method: "POST",
+    body: JSON.stringify({ story_id, article_ids, note }),
+  }, adminKey);
+}
+
+export async function moveArticle(
+  article_id: number,
+  target_story_id: number,
+  note: string,
+  adminKey?: string | null,
+): Promise<{ article_id: number; source_story_id: number | null; target_story_id: number }> {
+  return adminFetch(`/api/articles/${article_id}/move`, {
+    method: "POST",
+    body: JSON.stringify({ target_story_id, note }),
+  }, adminKey);
+}
+
+export async function correctStoryMetadata(
+  story_id: number,
+  payload: { ai_headline?: string; ai_summary?: string; topic?: string; note?: string },
+  adminKey?: string | null,
+): Promise<StoryDTO> {
+  return adminFetch(`/api/stories/${story_id}/correction`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  }, adminKey);
+}
+
+export async function correctArticleStance(
+  article_id: number,
+  label: "government_critical" | "government_neutral" | "government_supportive",
+  evidence: string,
+  note: string,
+  adminKey?: string | null,
+): Promise<ArticleDTO> {
+  return adminFetch(`/api/articles/${article_id}/stance-correction`, {
+    method: "POST",
+    body: JSON.stringify({ label, evidence, note }),
+  }, adminKey);
 }
 
 export async function resetDatabase(

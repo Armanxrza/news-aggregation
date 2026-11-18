@@ -1,31 +1,26 @@
-# SajhaNews — Nepal News Intelligence Platform
+# Sajha Intelligence
 
-A local-first, Nepal-focused news intelligence platform inspired by Ground News. It aggregates legitimate RSS feeds, clusters multi-outlet coverage of the same event (English + Nepali), analyzes **government framing** with evidence (not fake left/right scores), and assists with claim cross-checking across outlets.
+Sajha aggregates Nepal-focused RSS coverage and groups articles by event identity. Its pipeline combines multilingual retrieval, Nepali named-entity extraction, structured event frames, time and location checks, and conservative relationship decisions. Emotion signals and government stance are stored separately per article and publisher.
 
-## What was wrong before
+## Architecture
 
-- Synthetic / hidden left–center–right bias bars eroded trust
-- Title-only clustering failed across Nepali/English coverage
-- Thin schema, no crawl observability, no claims, weak search/analytics
-- Incomplete UI (missing pages, broken logo, disabled features)
-- Dual deploy paths (FastAPI vs Passenger) drifted apart
-
-## Architecture (v2)
-
-| Layer | Stack |
-|-------|--------|
-| API | FastAPI (`backend/main.py`) |
-| DB | SQLite by default (optional MySQL/Postgres via `DATABASE_URL`) |
-| Ingestion | RSS allowlist in `backend/data/nepal_sources.json` + `crawler.py` |
-| Embeddings | `paraphrase-multilingual-MiniLM-L12-v2` (fallback: hash TF vector) |
-| Framing | Multilingual NLI (`mDeBERTa-v3-base-mnli-xnli`) + lexical evidence |
+| Layer | Implementation |
+| --- | --- |
+| API | FastAPI in `backend/main.py` |
+| Storage | SQLAlchemy; SQLite for local work, persistent PostgreSQL recommended for deployment |
+| Ingestion | Configured RSS allowlist, per-article transactions, bounded feed retries, URL and content fingerprints |
+| Event retrieval | `intfloat/multilingual-e5-small` when the optional model runtime is available |
+| Nepali entities | Curated Nepal entity catalog plus optional `SynapseHQ/Finetuned-NER-NepBertA` token classifier |
+| Event decisions | Event identity frames, named entities, action families, dates, locations, and optional English NLI reranking |
+| Government stance | Article-level Critical / Neutral / Supportive with evidence; Nepali uses a conservative rule fallback until a Nepali stance checkpoint is validated |
+| Editorial tone | Separate attributed emotion and sensational-headline signals |
 | UI | Next.js 16 App Router |
 
-**Honesty rule:** Models are multilingual pretrained unless you set `FINETUNED_MODEL_PATH` after running the fine-tune script. The UI and API never claim “Nepal-trained” otherwise.
+The E5 model card reports 100 supported languages and explicitly cautions that low-resource languages can perform worse. E5 therefore improves cross-language retrieval but is not treated as a final event decision. The model is not Nepal-fine-tuned. A local Nepali NER checkpoint is optional; its predictions are combined with the curated entity catalog and should be reviewed on Sajha's own feed. No fine-tuning has been run as part of this change.
 
-## Quick start (Windows)
+## Local setup
 
-### 1. Backend
+### Backend
 
 ```powershell
 cd backend
@@ -37,10 +32,15 @@ python -m scripts.seed
 uvicorn main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-API docs: http://127.0.0.1:8000/docs  
-Health: http://127.0.0.1:8000/api/health
+For multilingual embeddings, NLI stance analysis, and Nepali NER, install the optional model dependencies:
 
-### 2. Frontend
+```powershell
+pip install -r requirements-ml.txt
+```
+
+The first model-backed analysis downloads weights and needs additional memory. If the optional package or model is unavailable, the service logs the fallback and keeps the conservative event-frame path active.
+
+### Frontend
 
 ```powershell
 cd frontend
@@ -49,64 +49,39 @@ npm install
 npm run dev
 ```
 
-App: http://localhost:3000
+Backend docs are at `http://127.0.0.1:8000/docs`; the UI is at `http://localhost:3000`.
 
-### 3. Optional live crawl
+### Crawl
 
-With the API running and `ADMIN_AUTH_DISABLED=true` (default in `.env.example`):
+Set `ADMIN_API_KEY` in `backend/.env`, then use the Admin page or send `X-Admin-Key` to `POST /api/crawl`. For a local-only demo, `ADMIN_AUTH_DISABLED=true` can be set while binding the API to localhost. Keep it false on any shared or public service.
 
-```powershell
-curl -X POST http://127.0.0.1:8000/api/crawl
-```
-
-Or use **Admin → Trigger crawl**. First crawl with `ANALYZE_ON_CRAWL=true` downloads HF models and can take several minutes.
-
-## Tests
+## Evaluation and regression tests
 
 ```powershell
 cd backend
-.\venv\Scripts\Activate.ps1
 pytest tests/ -q
-```
-
-## ML evaluation & fine-tuning
-
-Labeled Nepal EN/NE pair set: `backend/data/story_pairs.jsonl`  
-Framing labels: `backend/data/framing_labels.jsonl`
-
-```powershell
-cd backend
 python ml/evaluate_clustering.py
 python ml/evaluate_framing.py
-# Optional CPU fine-tune (install datasets + accelerate first):
-pip install datasets accelerate
-python ml/train_framing.py
-# Then set FINETUNED_MODEL_PATH=ml/artifacts/framing-nepal in .env
 ```
 
-## Key routes (UI)
+`data/story_pairs.jsonl` contains bilingual positive and hard-negative pairs. `data/event_clusters.jsonl` covers cluster quality, including the Kavre/Tihar tipper restrictions, different districts, same-actor different-event cases, follow-up coverage, and cross-language reporting. The evaluator prints pairwise precision, recall, F1, false-merge and false-split rates, B-cubed cluster scores, and adjusted Rand index. These fixtures are curated acceptance cases; newsroom review should continue adding adjudicated examples.
 
-| Path | Purpose |
-|------|---------|
-| `/` | Multi-source feed, filters, framing distribution |
-| `/story/[id]` | Headline comparison, framing, claims, coverage gap |
-| `/sources` | Outlet directory & profiles |
-| `/search` | Multilingual search |
-| `/bias` | Framing explorer + methodology |
-| `/analytics` | DB-backed language/topic/framing stats |
-| `/admin` | Sources, crawl, diagnostics (`X-Admin-Key`) |
+## Corrections and review
 
-## Environment notes
+Authorized admins can merge stories, split articles, move an article, correct a story title or summary, and correct an article's stance. Each action is saved to `story_corrections` for audit and future evaluation. Feedback is recorded; no model training or fine-tuning is performed automatically.
 
-- `ADMIN_AUTH_DISABLED=true` for local demos; set `false` and a strong `ADMIN_API_KEY` before any shared deployment.
-- `EMBEDDING_ENABLED=false` / `FRAMING_ENABLED=false` skips heavy model loads (hash/lexical fallbacks remain).
-- Seed data creates an offline multi-outlet demo story so the UI works without network.
+## Deployment notes
 
-## Limitations (documented)
+- Set `ADMIN_AUTH_DISABLED=false`, use a generated `ADMIN_API_KEY`, and restrict `CORS_ORIGINS` to the frontend origin.
+- Configure `DATABASE_URL` to a persistent managed database. SQLite on an ephemeral web-service filesystem can lose articles on restart.
+- The current Render blueprint disables model weights on the free-sized API process to avoid memory exhaustion. That deployment still runs event-frame matching and uses embeddings only when enabled on a suitably sized instance.
+- The in-process scheduler runs only while the API process is alive. A sleeping free web service is not an always-on crawler; reliable continuous collection needs an always-on worker or scheduled job and shared persistent storage.
+- RSS article text is stored as inert text, and no arbitrary page-scraping URL or article-provided prompt is sent to a generative model.
+- Story summaries are extractive and attributed to their source. Claim statuses are cross-outlet consistency assistance, not independent fact-checker verdicts.
 
-- Full-page article scraping is not enabled (RSS summaries only) to stay within permitted use.
-- Claim statuses are **cross-outlet consistency assists**, not independent fact-checker verdicts.
-- Publisher “perspective” is curated/manual (`not_independently_rated` by default) — never auto-invented.
-- Cross-language clustering needs the sentence-transformer model (`EMBEDDING_ENABLED=true`). The hash-TF fallback is English/token-overlap oriented and scores poorly on EN↔NE pairs.
-- On the labeled `story_pairs.jsonl` set, multilingual MiniLM at threshold 0.55 is precise but still misses some Nepali–English paraphrases — expand the labeled set and fine-tune if you need higher recall.
-- `passenger_wsgi.py` now wraps the FastAPI app via a2wsgi; prefer Uvicorn locally.
+## Current limits
+
+- Cross-language event matching depends on model-backed multilingual embeddings for the broadest paraphrase coverage. The conservative fallback can match explicit structured event anchors, but does not promise reliable matching for every unseen paraphrase.
+- Nepali C/N/S is deliberately conservative and does not use the current XNLI checkpoint, whose NLI fine-tuning does not include Nepali. A Nepali stance model needs a labeled evaluation set before it should replace this path.
+- Emotion and sensationalism outputs are language cues with attribution, not verified psychological states or claims about editorial intent.
+- Story titles use supported event-frame templates when the frame is strong; summaries quote selected source sentences and do not synthesize disputed facts.

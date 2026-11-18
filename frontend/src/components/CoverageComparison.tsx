@@ -129,6 +129,25 @@ export function CoverageComparison({
                     {article.framing_evidence}
                   </p>
                 )}
+                {article.editorial_context?.emotions?.length ? (
+                  <div className="mt-2 rounded-md bg-amber-50 px-2.5 py-2 text-xs text-amber-950">
+                    <p className="font-semibold">Emotion wording (separate from government stance)</p>
+                    <ul className="mt-1 space-y-0.5 text-amber-900/80">
+                      {article.editorial_context.emotions.slice(0, 2).map((cue, index) => (
+                        <li key={`${cue.emotion}-${index}`}>
+                          {cue.emotion} expressed by {cue.speaker}{cue.target ? ` toward ${cue.target}` : ""}
+                          {cue.attributed ? " · attributed" : " · reporter wording"}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+                {article.editorial_context?.sensationalism_signal === "possible" && (
+                  <p className="mt-1 text-[11px] text-orange-700">Possible sensational headline wording detected.</p>
+                )}
+                {article.is_syndicated_duplicate && (
+                  <p className="mt-1 text-[11px] text-foreground/40">Syndicated duplicate; retained for source transparency.</p>
+                )}
               </div>
               <a
                 href={article.url}

@@ -20,12 +20,20 @@ services:
         value: "false"
       - key: ANALYZE_ON_CRAWL
         value: "false"
+      - key: EVENT_RERANKER_ENABLED
+        value: "false"
+      - key: NEPALI_NER_ENABLED
+        value: "false"
       - key: CORS_ORIGINS
-        value: "*"
+        value: "https://sajhanews-frontend.onrender.com"
       - key: ADMIN_AUTH_DISABLED
-        value: "true"
+        value: "false"
+      - key: ADMIN_API_KEY
+        generateValue: true
       - key: DATABASE_URL
-        value: sqlite:///news_aggregator.db
+        sync: false
+      - key: ENABLE_CRAWL_SCHEDULER
+        value: "true"
 
   # ============================================================================
   # 2. SajhaNews Frontend Web (Next.js / Node.js)

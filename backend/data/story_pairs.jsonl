@@ -18,3 +18,14 @@
 {"left": "Tourist arrivals rise during Dashain season", "right": "दशैंमा पर्यटक आगमन बढ्यो", "same_event": true, "language_pair": "en-ne"}
 {"left": "Fuel prices revised at pumps nationwide", "right": "देशभर पेट्रोलियम पदार्थको मूल्य समायोजन", "same_event": true, "language_pair": "en-ne"}
 {"left": "Tourist arrivals rise during Dashain season", "right": "CIAA files case against former minister", "same_event": false, "language_pair": "en-en"}
+{"left": "काभ्रेमा तिहारभर टिपर सञ्चालनमा रोक", "right": "तिहारमा काभ्रेका सडकमा टिपर चलाउन प्रतिबन्ध", "same_event": true, "language_pair": "ne-ne", "relationship": "SAME_EVENT"}
+{"left": "काभ्रेमा तिहारभर टिपर सञ्चालनमा रोक", "right": "Tippers barred from operating in Kavre during Tihar", "same_event": true, "language_pair": "ne-en", "relationship": "SAME_EVENT"}
+{"left": "Tippers barred from operating in Kavre during Tihar", "right": "Tipper trucks prohibited on Kavre roads throughout Tihar", "same_event": true, "language_pair": "en-en", "relationship": "SAME_EVENT"}
+{"left": "Tippers barred from operating in Kavre during Tihar", "right": "Tippers barred from operating in Kaski during Tihar", "same_event": false, "language_pair": "en-en", "relationship": "SAME_TOPIC_DIFFERENT_EVENT"}
+{"left": "Tippers barred from operating in Kavre during Tihar", "right": "Landslides close roads in Kavre after heavy rain", "same_event": false, "language_pair": "en-en", "relationship": "UNRELATED_EVENT"}
+{"left": "KP Sharma Oli meets coalition leaders for seat-sharing talks", "right": "CIAA files a corruption case naming KP Sharma Oli", "same_event": false, "language_pair": "en-en", "relationship": "SAME_TOPIC_DIFFERENT_EVENT"}
+{"left": "Sindhupalchok landslide blocks highway after overnight rain", "right": "Rescue teams sent following landslide in Sindhupalchok", "same_event": false, "language_pair": "en-en", "relationship": "DIRECTLY_RELATED_EVENT"}
+{"left": "Election Commission announces local poll schedule", "right": "निर्वाचन आयोगले स्थानीय तहको चुनाव तालिका सार्वजनिक गर्‍यो", "same_event": true, "language_pair": "en-ne", "relationship": "SAME_EVENT"}
+{"left": "Election Commission announces local poll schedule", "right": "Gold prices climb in Kathmandu markets", "same_event": false, "language_pair": "en-en", "relationship": "UNRELATED_EVENT"}
+{"left": "Nepal Rastra Bank keeps policy rate unchanged in 2026", "right": "NRB maintains its policy rate after the 2026 review", "same_event": true, "language_pair": "en-en", "relationship": "SAME_EVENT"}
+{"left": "Nepal Rastra Bank keeps policy rate unchanged in 2026", "right": "Nepal Rastra Bank raises the policy rate in 2025", "same_event": false, "language_pair": "en-en", "relationship": "SAME_TOPIC_DIFFERENT_EVENT"}

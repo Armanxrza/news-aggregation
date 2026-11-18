@@ -7,6 +7,7 @@ import json
 import logging
 import math
 import re
+import unicodedata
 from functools import lru_cache
 from typing import Any
 
@@ -40,21 +41,26 @@ def _st_model() -> Any | None:
 def model_id() -> str:
     if _st_model() is not None:
         return HF_EMBEDDING_MODEL
-    return "local-hash-tfidf-fallback-v1"
+    return "local-hash-tfidf-fallback-v2"
 
 
-def embed_texts(texts: list[str]) -> list[list[float]]:
+def embed_texts(texts: list[str], *, role: str = "passage") -> list[list[float]]:
     if not texts:
         return []
     model = _st_model()
     if model is not None:
-        vectors = model.encode(texts, normalize_embeddings=True, show_progress_bar=False)
+        if "multilingual-e5" in HF_EMBEDDING_MODEL.casefold():
+            prefix = "query: " if role == "query" else "passage: "
+            model_texts = [prefix + unicodedata.normalize("NFKC", t or "").strip() for t in texts]
+        else:
+            model_texts = [unicodedata.normalize("NFKC", t or "").strip() for t in texts]
+        vectors = model.encode(model_texts, normalize_embeddings=True, show_progress_bar=False)
         return [v.astype(float).tolist() for v in np.asarray(vectors)]
     return [_hash_tf_vector(t) for t in texts]
 
 
-def embed_text(text: str) -> list[float]:
-    return embed_texts([text or ""])[0]
+def embed_text(text: str, *, role: str = "passage") -> list[float]:
+    return embed_texts([text or ""], role=role)[0]
 
 
 def cosine(a: list[float], b: list[float]) -> float:

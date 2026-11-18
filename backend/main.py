@@ -9,7 +9,7 @@ import logging
 import os
 import re
 from threading import Lock
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -41,6 +41,9 @@ from services.framing import (
     desk_metrics,
     framing_to_bias_pcts,
 )
+from services.importance import story_importance
+from services.clustering import rebuild_story_embedding
+from services.event_intelligence import extract_event_frame
 
 logging.basicConfig(level=getattr(logging, config.LOG_LEVEL.upper(), logging.INFO))
 logger = logging.getLogger("sajhanews")
@@ -151,6 +154,24 @@ class SplitStoryBody(BaseModel):
     note: Optional[str] = None
 
 
+class MoveArticleBody(BaseModel):
+    target_story_id: int
+    note: Optional[str] = None
+
+
+class StoryMetadataCorrection(BaseModel):
+    ai_headline: Optional[str] = Field(default=None, min_length=1, max_length=512)
+    ai_summary: Optional[str] = Field(default=None, max_length=4000)
+    topic: Optional[str] = Field(default=None, max_length=255)
+    note: Optional[str] = None
+
+
+class ArticleStanceCorrection(BaseModel):
+    label: Literal["government_critical", "government_neutral", "government_supportive"]
+    evidence: str = Field(min_length=3, max_length=2000)
+    note: Optional[str] = None
+
+
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 FRAMING_BUCKETS = (
@@ -175,13 +196,16 @@ def framing_counts_for_articles(articles: list[Any]) -> dict[str, int]:
 
 
 def _ensure_article_framing(article: Any, *, persist: bool = False) -> tuple[str, dict[str, float]]:
-    """Return (label, soft scores). Always has critical/neutral/supportive mix."""
+    """Return cached, versioned per-article government stance."""
     stored = _json_loads(getattr(article, "framing_scores_json", None), None)
     label = getattr(article, "government_framing", None)
+    method = getattr(article, "framing_method", None) or ""
+    corrected = bool(getattr(article, "framing_is_corrected", False))
     if (
         isinstance(stored, dict)
         and {"critical", "neutral", "supportive"} <= set(stored.keys())
         and label in {"government_critical", "government_neutral", "government_supportive"}
+        and (method.startswith("stance-v4") or corrected)
     ):
         return label, {
             "critical": float(stored["critical"]),
@@ -192,7 +216,7 @@ def _ensure_article_framing(article: Any, *, persist: bool = False) -> tuple[str
     text = f"{getattr(article, 'original_headline', '') or ''}\n{getattr(article, 'content_text', '') or ''}"
     result = analyze_government_framing(text, lexical_only=True)
     label = result["label"]
-    scores = result.get("scores") or {"critical": 0.2, "neutral": 0.55, "supportive": 0.25}
+    scores = result.get("scores") or {"critical": 0.0, "neutral": 1.0, "supportive": 0.0}
 
     if persist and isinstance(article, Article):
         article.government_framing = label
@@ -238,6 +262,8 @@ def story_to_dto(
     if meta is None:
         articles, meta = focus_coverage(articles, story.ai_headline, story.cluster_method)
     sources = sorted({a.source.name for a in articles if a.source})
+    independent_articles = [a for a in articles if not getattr(a, "duplicate_of_id", None)]
+    independent_source_ids = {a.source_id for a in independent_articles if getattr(a, "source_id", None) is not None}
     languages = sorted({
         (a.language or a.detected_language or (a.source.language if a.source else None) or "unknown")
         for a in articles
@@ -267,6 +293,16 @@ def story_to_dto(
             })
     gov_pcts = framing_to_bias_pcts(score_rows)
     framing_counts = framing_counts_for_articles(articles)
+    event_frame = _json_loads(story.event_frame_json, None)
+    if not isinstance(event_frame, dict):
+        event_frame = extract_event_frame(story.ai_headline or "")
+    related_ids = _json_loads(story.related_stories_json, []) or []
+    importance = story_importance(
+        articles,
+        latest=latest,
+        frame=event_frame,
+        topic=story.topic,
+    )
 
     coverage_sufficient = bool(meta.get("coverage_sufficient"))
     payload = {
@@ -286,8 +322,12 @@ def story_to_dto(
         },
         "source_bias": source_bias[:8] if coverage_sufficient else [],
         "created_at": (latest or story.created_at).isoformat() if (latest or story.created_at) else None,
-        "source_count": len({a.source_id for a in articles}),
+        "source_count": len(independent_source_ids),
         "article_count": len(articles),
+        "source_diversity": {
+            "independent_sources": len(independent_source_ids),
+            "syndicated_articles": sum(1 for a in articles if getattr(a, "duplicate_of_id", None)),
+        },
         "thumbnail_url": thumbs[0] if thumbs else None,
         "sources": sources,
         "languages": [l for l in languages if l],
@@ -297,6 +337,17 @@ def story_to_dto(
         "coverage_sufficient": coverage_sufficient,
         "omitted_unrelated": int(meta.get("omitted") or 0),
         "bias_note": meta.get("bias_note"),
+        "cluster_relationship": story.cluster_relationship,
+        "cluster_evidence": _json_loads(story.cluster_evidence_json, {}) or {},
+        "event_identity": {
+            "action": event_frame.get("action_family"),
+            "actors": event_frame.get("actors", []),
+            "locations": event_frame.get("locations", []),
+            "objects": event_frame.get("objects", []),
+            "time_markers": event_frame.get("event_markers", []),
+        },
+        "related_story_ids": related_ids,
+        "importance_score": importance,
     }
     return payload
 
@@ -331,8 +382,13 @@ def article_to_dto(article: Article) -> dict[str, Any]:
         "framing_method": article.framing_method,
         "framing_scores": _json_loads(article.framing_scores_json, None),
         "entities": _json_loads(article.entities_json, []),
+        "entities_model": article.entities_model,
         "topics": _json_loads(article.topics_json, []),
         "signals": _json_loads(article.signals_json, {}),
+        "editorial_context": _json_loads(article.editorial_json, {}),
+        "duplicate_kind": article.duplicate_kind,
+        "is_syndicated_duplicate": bool(article.duplicate_of_id),
+        "analysis_status": article.analysis_status,
     }
 
 
@@ -396,8 +452,11 @@ def root():
         "docs": "/docs",
         "features": [
             "rss_ingestion",
-            "multilingual_clustering",
-            "government_framing",
+            "multilingual_event_identity",
+            "event_relationship_reranking",
+            "government_stance",
+            "editorial_emotion_signals",
+            "story_timeline_and_importance",
             "claim_assistance",
             "source_profiles",
             "analytics",
@@ -405,6 +464,8 @@ def root():
         "models": {
             "framing": active_model_name(),
             "embedding": config.HF_EMBEDDING_MODEL if config.EMBEDDING_ENABLED else "local-hash-tfidf-fallback-v1",
+            "embedding_enabled": config.EMBEDDING_ENABLED,
+            "framing_enabled": config.FRAMING_ENABLED,
             "nepal_finetuned": bool(config.FINETUNED_MODEL_PATH),
             "framing_metrics": desk_metrics(),
         },
@@ -614,6 +675,7 @@ def list_stories(
             Article.political_bias,
             Article.original_headline,
             Article.content_text,
+            Article.duplicate_of_id,
             Source.name.label("source_name"),
             Source.language.label("source_language"),
         )
@@ -660,6 +722,8 @@ def list_stories(
             a.political_bias = r.political_bias
             a.original_headline = r.original_headline
             a.content_text = (r.content_text or "")[:500]
+            a.duplicate_of_id = r.duplicate_of_id
+            a.duplicate_kind = None
             src = _A()
             src.name = r.source_name
             src.language = r.source_language
@@ -702,8 +766,8 @@ def list_stories(
     # Nepal bucket first, then multi-source, then newest
     results.sort(
         key=lambda s: (
+            s["importance_score"],
             1 if _nepal_rank(s) > 0 else 0,
-            s["source_count"],
             _nepal_rank(s),
             s.get("created_at") or "",
         ),
@@ -733,12 +797,31 @@ def get_story(story_id: int, db: Session = Depends(get_db)):
         raise HTTPException(404, "Story not found")
     articles = sorted(
         story.articles or [],
-        key=lambda a: a.published_at or datetime.datetime.min,
+        key=lambda a: (a.published_at.replace(tzinfo=None) if a.published_at and a.published_at.tzinfo else a.published_at) or datetime.datetime.min,
         reverse=True,
     )
     articles, meta = focus_coverage(articles, story.ai_headline, story.cluster_method)
     dto = story_to_dto(story, articles, meta)
     dto["articles"] = [article_to_dto(a) for a in articles]
+    dto["timeline"] = [
+        {
+            "published_at": a.published_at.isoformat() if a.published_at else None,
+            "source": a.source.name if a.source else "Unknown",
+            "headline": a.original_headline,
+            "url": a.url,
+            "is_syndicated_duplicate": bool(a.duplicate_of_id),
+        }
+        for a in sorted(articles, key=lambda item: (item.published_at.replace(tzinfo=None) if item.published_at and item.published_at.tzinfo else item.published_at) or datetime.datetime.min)
+    ]
+    related_ids = dto.get("related_story_ids") or []
+    if related_ids:
+        related_rows = db.query(Story.id, Story.ai_headline, Story.topic).filter(Story.id.in_(related_ids)).all()
+        dto["related_stories"] = [
+            {"id": row.id, "ai_headline": row.ai_headline, "topic": row.topic}
+            for row in related_rows
+        ]
+    else:
+        dto["related_stories"] = []
 
     # Headline comparison matrix
     comparison = []
@@ -1044,8 +1127,78 @@ def analyze_article_framing(
     article.framing_model = result.get("model")
     article.framing_evidence = result.get("evidence")
     article.framing_method = result.get("method")
+    article.framing_scores_json = _json_dumps(result.get("scores"))
+    article.framing_is_corrected = False
     db.commit()
     return article_to_dto(article)
+
+
+@app.post("/api/articles/{article_id}/stance-correction")
+def correct_article_stance(
+    article_id: int,
+    body: ArticleStanceCorrection,
+    db: Session = Depends(get_db),
+    _: None = Depends(require_admin),
+):
+    article = db.query(Article).filter(Article.id == article_id).first()
+    if not article:
+        raise HTTPException(404, "Article not found")
+    previous = article.government_framing
+    score_key = body.label.removeprefix("government_")
+    scores = {"critical": 0.0, "neutral": 0.0, "supportive": 0.0}
+    scores[score_key] = 1.0
+    article.government_framing = body.label
+    article.framing_confidence = 1.0
+    article.framing_model = "human-correction"
+    article.framing_method = "stance-v4-human-correction"
+    article.framing_evidence = body.evidence
+    article.framing_scores_json = _json_dumps(scores)
+    article.framing_is_corrected = True
+    db.add(StoryCorrection(
+        action="stance",
+        source_story_id=article.story_id,
+        target_story_id=article.story_id,
+        article_ids_json=json.dumps([article.id]),
+        correction_data_json=_json_dumps({"before": previous, "after": body.label, "evidence": body.evidence}),
+        note=body.note,
+    ))
+    db.commit()
+    return article_to_dto(article)
+
+
+@app.patch("/api/stories/{story_id}/correction")
+def correct_story_metadata(
+    story_id: int,
+    body: StoryMetadataCorrection,
+    db: Session = Depends(get_db),
+    _: None = Depends(require_admin),
+):
+    story = db.query(Story).filter(Story.id == story_id).first()
+    if not story:
+        raise HTTPException(404, "Story not found")
+    changed = {
+        key: value for key, value in body.model_dump(exclude_none=True).items()
+        if key in {"ai_headline", "ai_summary", "topic"}
+    }
+    if not changed:
+        raise HTTPException(400, "Provide a corrected headline, summary, or topic")
+    before = {key: getattr(story, key) for key in changed}
+    for key, value in changed.items():
+        setattr(story, key, value.strip() if isinstance(value, str) else value)
+    if "ai_headline" in changed:
+        story.title_is_corrected = True
+    if "ai_summary" in changed:
+        story.summary_is_corrected = True
+    db.add(StoryCorrection(
+        action="metadata",
+        source_story_id=story.id,
+        target_story_id=story.id,
+        correction_data_json=_json_dumps({"before": before, "after": changed}),
+        note=body.note,
+    ))
+    db.commit()
+    db.refresh(story)
+    return story_to_dto(story)
 
 
 @app.post("/api/stories/merge")
@@ -1061,6 +1214,7 @@ def merge_stories(
     target = db.query(Story).filter(Story.id == body.target_story_id).first()
     if not source or not target:
         raise HTTPException(404, "Story not found")
+    source_article_ids = [row[0] for row in db.query(Article.id).filter(Article.story_id == source.id).all()]
     moved = (
         db.query(Article)
         .filter(Article.story_id == source.id)
@@ -1071,10 +1225,15 @@ def merge_stories(
             action="merge",
             source_story_id=source.id,
             target_story_id=target.id,
+            article_ids_json=_json_dumps(source_article_ids),
+            correction_data_json=_json_dumps({"moved_articles": moved}),
             note=body.note,
         )
     )
     db.delete(source)
+    db.expire(target, ["articles"])
+    rebuild_story_embedding(db, target)
+    target.updated_at = datetime.datetime.utcnow()
     db.commit()
     return {"moved_articles": moved, "target_story_id": target.id}
 
@@ -1096,8 +1255,12 @@ def split_story(
     )
     if not articles:
         raise HTTPException(400, "No matching articles in story")
+    total_articles = db.query(func.count(Article.id)).filter(Article.story_id == story.id).scalar() or 0
+    if len(articles) >= total_articles:
+        raise HTTPException(400, "A split must leave at least one article in the original story")
     new_story = Story(
         ai_headline=articles[0].original_headline,
+        ai_summary=story.ai_summary,
         topic=story.topic,
         cluster_method="admin_split",
         cluster_confidence=1.0,
@@ -1106,6 +1269,11 @@ def split_story(
     db.flush()
     for article in articles:
         article.story_id = new_story.id
+    db.flush()
+    db.expire(story, ["articles"])
+    db.expire(new_story, ["articles"])
+    rebuild_story_embedding(db, story)
+    rebuild_story_embedding(db, new_story)
     db.add(
         StoryCorrection(
             action="split",
@@ -1118,6 +1286,43 @@ def split_story(
     db.commit()
     db.refresh(new_story)
     return {"new_story_id": new_story.id, "article_ids": body.article_ids}
+
+
+@app.post("/api/articles/{article_id}/move")
+def move_article(
+    article_id: int,
+    body: MoveArticleBody,
+    db: Session = Depends(get_db),
+    _: None = Depends(require_admin),
+):
+    article = db.query(Article).filter(Article.id == article_id).first()
+    target = db.query(Story).filter(Story.id == body.target_story_id).first()
+    if not article:
+        raise HTTPException(404, "Article not found")
+    if not target:
+        raise HTTPException(404, "Target story not found")
+    source_id = article.story_id
+    if source_id == target.id:
+        raise HTTPException(400, "Article already belongs to that story")
+    article.story_id = target.id
+    db.add(StoryCorrection(
+        action="move_article",
+        source_story_id=source_id,
+        target_story_id=target.id,
+        article_ids_json=_json_dumps([article.id]),
+        note=body.note,
+    ))
+    db.flush()
+    if source_id:
+        source = db.query(Story).filter(Story.id == source_id).first()
+        if source:
+            db.expire(source, ["articles"])
+            rebuild_story_embedding(db, source)
+    db.expire(target, ["articles"])
+    rebuild_story_embedding(db, target)
+    target.updated_at = datetime.datetime.utcnow()
+    db.commit()
+    return {"article_id": article.id, "source_story_id": source_id, "target_story_id": target.id}
 
 
 @app.post("/api/recluster")

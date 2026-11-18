@@ -26,6 +26,7 @@ from services.language import detect_language  # noqa: E402
 from services.nepal import classify_topics, extract_entities  # noqa: E402
 from services.claims import extract_claims_from_text  # noqa: E402
 from services.framing import analyze_government_framing  # noqa: E402
+from services.event_intelligence import classify_event_relationship, extract_event_frame  # noqa: E402
 
 
 def setup_module():
@@ -67,7 +68,7 @@ def test_claim_extraction():
 
 def test_framing_lexical_fallback():
     result = analyze_government_framing(
-        "Opposition leaders criticised the government for failing to control corruption and mismanagement in procurement.",
+        "The government failed to control corruption and mismanaged public procurement.",
         lexical_only=True,
     )
     assert result["label"] == "government_critical"
@@ -77,11 +78,96 @@ def test_framing_lexical_fallback():
 
 
 def test_framing_soft_not_all_neutral():
-    a = analyze_government_framing("Cabinet praised for historic welfare achievement launch.", lexical_only=True)
-    b = analyze_government_framing("Protest against government corruption scandal grows in Kathmandu.", lexical_only=True)
+    a = analyze_government_framing("The government's effective welfare program improved access to services.", lexical_only=True)
+    b = analyze_government_framing("The government failed to control corruption and mismanaged public procurement.", lexical_only=True)
     assert a["scores"]["supportive"] > 0.15
     assert b["scores"]["critical"] > 0.15
     assert a["bias_left_pct"] if False else a["scores"]["supportive"] != b["scores"]["supportive"]
+
+
+def test_quoted_or_attributed_opinion_does_not_set_publication_stance():
+    result = analyze_government_framing(
+        'Opposition leaders said "the government failed" during a press conference.',
+        lexical_only=True,
+    )
+    assert result["label"] == "government_neutral"
+    assert result["scores"] == {"critical": 0.0, "neutral": 1.0, "supportive": 0.0}
+
+
+def test_event_frame_groups_kavre_tihar_tipper_headlines():
+    nepali_a = "काभ्रेमा तिहारभर टिपर सञ्चालनमा रोक"
+    nepali_b = "तिहारमा काभ्रेका सडकमा टिपर चलाउन प्रतिबन्ध"
+    english = "Tippers barred from operating in Kavre during Tihar"
+    frames = [extract_event_frame(text) for text in (nepali_a, nepali_b, english)]
+    a_b = classify_event_relationship(frames[0], frames[1], left_text=nepali_a, right_text=nepali_b)
+    a_en = classify_event_relationship(frames[0], frames[2], left_text=nepali_a, right_text=english)
+    assert a_b["relationship"] == "SAME_EVENT"
+    assert a_en["relationship"] == "SAME_EVENT"
+
+
+def test_cross_language_event_identity_pairs():
+    pairs = [
+        (
+            "Prime Minister addresses Parliament on economic reform bill",
+            "\u092a\u094d\u0930\u0927\u093e\u0928\u092e\u0928\u094d\u0924\u094d\u0930\u0940\u0932\u0947 \u0938\u0902\u0938\u0926\u092e\u093e \u0906\u0930\u094d\u0925\u093f\u0915 \u0938\u0941\u0927\u093e\u0930 \u0935\u093f\u0927\u0947\u092f\u0915\u092c\u093e\u0930\u0947 \u0938\u092e\u094d\u092c\u094b\u0927\u0928 \u0917\u0930\u0947",
+        ),
+        (
+            "Heavy rainfall triggers landslides in Sindhupalchok",
+            "\u0938\u093f\u0928\u094d\u0927\u0941\u092a\u093e\u0932\u094d\u091a\u094b\u0915\u092e\u093e \u092d\u093e\u0930\u0940 \u0935\u0930\u094d\u0937\u093e\u092a\u091b\u093f \u092a\u0939\u093f\u0930\u094b \u0917\u090f\u0915\u094b \u091b",
+        ),
+        (
+            "Nepal beat Oman in thrilling cricket finish",
+            "\u0928\u0947\u092a\u093e\u0932\u0932\u0947 \u0930\u094b\u092e\u093e\u091e\u094d\u091a\u0915 \u0916\u0947\u0932\u092e\u093e \u0913\u092e\u093e\u0928\u0932\u093e\u0908 \u0939\u0930\u093e\u092f\u094b",
+        ),
+        (
+            "India and Nepal hold bilateral talks in New Delhi",
+            "\u092d\u093e\u0930\u0924 \u0930 \u0928\u0947\u092a\u093e\u0932\u092c\u0940\u091a \u0928\u092f\u093e\u0901 \u0926\u093f\u0932\u094d\u0932\u0940\u092e\u093e \u0926\u094d\u0935\u093f\u092a\u0915\u094d\u0937\u0940\u092f \u0935\u093e\u0930\u094d\u0924\u093e",
+        ),
+        (
+            "Students protest fee hike at Tribhuvan University",
+            "\u0924\u094d\u0930\u093f\u092d\u0941\u0935\u0928 \u0935\u093f\u0936\u094d\u0935\u0935\u093f\u0926\u094d\u092f\u093e\u0932\u092f\u092e\u093e \u0936\u0941\u0932\u094d\u0915 \u0935\u0943\u0926\u094d\u0927\u093f\u0935\u093f\u0930\u0941\u0926\u094d\u0927 \u0935\u093f\u0926\u094d\u092f\u093e\u0930\u094d\u0925\u0940 \u092a\u094d\u0930\u0926\u0930\u094d\u0936\u0928",
+        ),
+    ]
+    for left, right in pairs:
+        relation = classify_event_relationship(
+            extract_event_frame(left), extract_event_frame(right), left_text=left, right_text=right
+        )
+        assert relation["relationship"] == "SAME_EVENT", (left, relation)
+
+
+def test_event_frame_keeps_same_words_in_different_districts_separate():
+    kavre = "Tippers barred from operating in Kavre during Tihar"
+    kaski = "Tippers barred from operating in Kaski during Tihar"
+    result = classify_event_relationship(extract_event_frame(kavre), extract_event_frame(kaski), left_text=kavre, right_text=kaski)
+    assert result["relationship"] == "SAME_TOPIC_DIFFERENT_EVENT"
+
+
+def test_same_person_does_not_merge_different_events():
+    talks = "KP Sharma Oli meets coalition leaders for seat-sharing talks"
+    case = "CIAA files a corruption case naming KP Sharma Oli"
+    result = classify_event_relationship(extract_event_frame(talks), extract_event_frame(case), left_text=talks, right_text=case)
+    assert result["relationship"] in {"SAME_TOPIC_DIFFERENT_EVENT", "UNRELATED_EVENT"}
+
+
+def test_event_update_and_related_event_relationships():
+    first = "Nepal Rastra Bank keeps policy rate unchanged in 2026"
+    update = "NRB maintains its policy rate after the 2026 review"
+    same_update = classify_event_relationship(
+        extract_event_frame(first), extract_event_frame(update),
+        left_time=__import__("datetime").datetime(2026, 6, 1),
+        right_time=__import__("datetime").datetime(2026, 6, 6),
+        left_text=first, right_text=update,
+    )
+    assert same_update["relationship"] == "EVENT_UPDATE"
+
+    landslide = "Heavy landslide blocks a highway in Sindhupalchok"
+    response = "Council approves emergency funding following the Sindhupalchok landslide"
+    related = classify_event_relationship(
+        extract_event_frame(landslide, topics=["Disaster"]),
+        extract_event_frame(response, topics=["Disaster"]),
+        left_text=landslide, right_text=response,
+    )
+    assert related["relationship"] == "DIRECTLY_RELATED_EVENT"
 
 
 def test_clustering_groups_similar_headlines():
@@ -103,6 +189,29 @@ def test_clustering_groups_similar_headlines():
         )
         assert story1.id == story2.id
         assert meta2.get("matched") is True
+    finally:
+        db.close()
+
+
+def test_clustering_separates_same_headline_event_in_another_district():
+    db = SessionLocal()
+    try:
+        first, _ = get_or_create_story(
+            db,
+            "Tippers barred from operating in Kavre during Tihar",
+            category="Nepal",
+            content="Tipper traffic is restricted in Kavre throughout Tihar.",
+            language="en",
+        )
+        second, meta = get_or_create_story(
+            db,
+            "Tippers barred from operating in Kaski during Tihar",
+            category="Nepal",
+            content="Tipper traffic is restricted in Kaski throughout Tihar.",
+            language="en",
+        )
+        assert first.id != second.id
+        assert meta["matched"] is False
     finally:
         db.close()
 
@@ -156,6 +265,8 @@ def test_api_health_and_seed_shape():
                 framing_evidence="test",
             )
         )
+        db.flush()
+        article_id = db.query(Article.id).filter(Article.url == "https://test-portal.example/demo-1").scalar()
         db.commit()
         story_id = story.id
     finally:
@@ -171,6 +282,21 @@ def test_api_health_and_seed_shape():
     assert detail.status_code == 200
     assert detail.json()["source_count"] == 1
     assert isinstance(detail.json()["bias_left_pct"], (float, int, type(None)))
+
+    corrected = client.post(
+        f"/api/articles/{article_id}/stance-correction",
+        json={"label": "government_critical", "evidence": "Manual test correction evidence."},
+    )
+    assert corrected.status_code == 200
+    assert corrected.json()["government_framing"] == "government_critical"
+    assert corrected.json()["framing_method"] == "stance-v4-human-correction"
+
+    metadata = client.patch(
+        f"/api/stories/{story_id}/correction",
+        json={"ai_summary": "Corrected evidence-based summary."},
+    )
+    assert metadata.status_code == 200
+    assert metadata.json()["ai_summary"] == "Corrected evidence-based summary."
 
     analytics = client.get("/api/analytics/overview")
     assert analytics.status_code == 200
@@ -262,7 +388,11 @@ def test_clustering_does_not_merge_unrelated_events():
         assert texas_meta["matched"] is False
         assert again.id == water.id
         assert again_meta["matched"] is True
-        assert again_meta["method"] == "same_event"
+        assert again_meta["relationship"] == "SAME_EVENT"
+        assert again_meta["method"] in {
+            "event-frame+multilingual-embedding",
+            "event-frame-conservative",
+        }
     finally:
         db.close()
 
@@ -390,7 +520,7 @@ def test_desk_classifier_splits_framing():
 
     assert DESK_MODEL_PATH.exists(), "Train with python -m ml.train_framing"
     critical = analyze_government_framing(
-        "Opposition leaders criticised the cabinet for failing to deliver flood relief and alleged mismanagement."
+        "The cabinet failed to deliver flood relief, and its mismanagement caused further harm to families."
     )
     neutral = analyze_government_framing(
         "The statistics office released the quarterly employment table without additional comment."

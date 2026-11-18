@@ -11,7 +11,7 @@ BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
 
 APP_NAME = "SajhaNews"
-APP_VERSION = "2.0.0"
+APP_VERSION = "3.0.0"
 
 # Database
 _raw_db = os.getenv("DATABASE_URL", "").strip()
@@ -46,16 +46,22 @@ USER_AGENT = os.getenv(
 # AI / models — never claim Nepal fine-tuning unless FINETUNED_MODEL_PATH is set
 FRAMING_ENABLED = os.getenv("FRAMING_ENABLED", "true").lower() == "true"
 EMBEDDING_ENABLED = os.getenv("EMBEDDING_ENABLED", "true").lower() == "true"
+EVENT_RERANKER_ENABLED = os.getenv("EVENT_RERANKER_ENABLED", "true").lower() == "true"
+NEPALI_NER_ENABLED = os.getenv("NEPALI_NER_ENABLED", "true").lower() == "true"
+HF_NEPALI_NER_MODEL = os.getenv("HF_NEPALI_NER_MODEL", "SynapseHQ/Finetuned-NER-NepBertA")
 HF_FRAMING_MODEL = os.getenv("HF_FRAMING_MODEL", "MoritzLaurer/mDeBERTa-v3-base-mnli-xnli")
 HF_EMBEDDING_MODEL = os.getenv(
     "HF_EMBEDDING_MODEL",
-    "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    "intfloat/multilingual-e5-small",
 )
 FINETUNED_MODEL_PATH = os.getenv("FINETUNED_MODEL_PATH", "").strip()
 FRAMING_MIN_CHARS = int(os.getenv("FRAMING_MIN_CHARS", "40"))
-# 0.55 balances EN–NE recall on data/story_pairs.jsonl; raise for stricter merges
-CLUSTER_SIMILARITY_THRESHOLD = float(os.getenv("CLUSTER_SIMILARITY_THRESHOLD", "0.55"))
-CLUSTER_TIME_WINDOW_HOURS = int(os.getenv("CLUSTER_TIME_WINDOW_HOURS", "72"))
+# Embedding similarity retrieves and ranks candidates; event evidence makes the
+# final merge decision. These values are deliberately conservative.
+CLUSTER_SIMILARITY_THRESHOLD = float(os.getenv("CLUSTER_SIMILARITY_THRESHOLD", "0.78"))
+CLUSTER_TIME_WINDOW_HOURS = int(os.getenv("CLUSTER_TIME_WINDOW_HOURS", "96"))
+CLUSTER_UPDATE_WINDOW_HOURS = int(os.getenv("CLUSTER_UPDATE_WINDOW_HOURS", "168"))
+CLUSTER_CANDIDATE_LIMIT = int(os.getenv("CLUSTER_CANDIDATE_LIMIT", "300"))
 
 DATA_DIR = BASE_DIR / "data"
 ML_DIR = BASE_DIR / "ml"

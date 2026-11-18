@@ -57,6 +57,8 @@ class Story(Base):
     id = Column(Integer, primary_key=True)
     ai_headline = Column(String(512), nullable=False)
     ai_summary = Column(Text, nullable=True)
+    title_is_corrected = Column(Boolean, default=False)
+    summary_is_corrected = Column(Boolean, default=False)
     topic = Column(String(255), nullable=True)
     # Legacy fields kept nullable — never synthesize ideology percentages
     bias_left_pct = Column(Float, nullable=True)
@@ -65,6 +67,11 @@ class Story(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
     embedding = Column(Text, nullable=True)
+    embedding_model = Column(String(255), nullable=True)
+    event_frame_json = Column(Text, nullable=True)
+    cluster_relationship = Column(String(32), nullable=True)
+    cluster_evidence_json = Column(Text, nullable=True)
+    related_stories_json = Column(Text, nullable=True)
     languages = Column(String(64), nullable=True)
     cluster_method = Column(String(64), nullable=True)
     cluster_confidence = Column(Float, nullable=True)
@@ -92,10 +99,21 @@ class Article(Base):
     detected_language = Column(String(10), nullable=True)
     topics_json = Column(Text, nullable=True)
     entities_json = Column(Text, nullable=True)
+    entities_model = Column(String(255), nullable=True)
     signals_json = Column(Text, nullable=True)
 
     ai_bias_score = Column(Float, nullable=True)  # unused for public ideology
     embedding = Column(Text, nullable=True)
+    embedding_model = Column(String(255), nullable=True)
+    event_frame_json = Column(Text, nullable=True)
+    editorial_json = Column(Text, nullable=True)
+    content_fingerprint = Column(String(64), nullable=True, index=True)
+    analysis_version = Column(String(32), nullable=True)
+    analysis_status = Column(String(24), nullable=True)
+    analysis_error = Column(Text, nullable=True)
+    duplicate_of_id = Column(Integer, ForeignKey("articles.id"), nullable=True)
+    duplicate_kind = Column(String(32), nullable=True)
+    framing_is_corrected = Column(Boolean, default=False)
     government_framing = Column(String(32), nullable=True)
     framing_confidence = Column(Float, nullable=True)
     framing_model = Column(String(255), nullable=True)
@@ -169,6 +187,7 @@ class StoryCorrection(Base):
     source_story_id = Column(Integer, nullable=True)
     target_story_id = Column(Integer, nullable=True)
     article_ids_json = Column(Text, nullable=True)
+    correction_data_json = Column(Text, nullable=True)
     note = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
@@ -232,6 +251,7 @@ def _migrate_columns() -> None:
         "detected_language": "VARCHAR(10)",
         "topics_json": "TEXT",
         "entities_json": "TEXT",
+        "entities_model": "VARCHAR(255)",
         "signals_json": "TEXT",
         "government_framing": "VARCHAR(32)",
         "framing_confidence": "FLOAT",
@@ -244,6 +264,16 @@ def _migrate_columns() -> None:
         "bias_evidence": "TEXT",
         "bias_model": "VARCHAR(255)",
         "framing_scores_json": "TEXT",
+        "embedding_model": "VARCHAR(255)",
+        "event_frame_json": "TEXT",
+        "editorial_json": "TEXT",
+        "content_fingerprint": "VARCHAR(64)",
+        "analysis_version": "VARCHAR(32)",
+        "analysis_status": "VARCHAR(24)",
+        "analysis_error": "TEXT",
+        "duplicate_of_id": "INTEGER",
+        "duplicate_kind": "VARCHAR(32)",
+        "framing_is_corrected": "BOOLEAN DEFAULT 0",
     }
     source_additions = {
         "category": "VARCHAR(64)",
@@ -260,10 +290,20 @@ def _migrate_columns() -> None:
     story_additions = {
         "updated_at": "DATETIME",
         "embedding": "TEXT",
+        "embedding_model": "VARCHAR(255)",
+        "event_frame_json": "TEXT",
+        "title_is_corrected": "BOOLEAN DEFAULT 0",
+        "summary_is_corrected": "BOOLEAN DEFAULT 0",
+        "cluster_relationship": "VARCHAR(32)",
+        "cluster_evidence_json": "TEXT",
+        "related_stories_json": "TEXT",
         "languages": "VARCHAR(64)",
         "cluster_method": "VARCHAR(64)",
         "cluster_confidence": "FLOAT",
     }
+    correction_cols = {
+        c["name"] for c in inspector.get_columns("story_corrections")
+    } if "story_corrections" in tables else set()
 
     with engine.begin() as connection:
         for name, column_type in article_additions.items():
@@ -275,3 +315,5 @@ def _migrate_columns() -> None:
         for name, column_type in story_additions.items():
             if name not in story_cols:
                 connection.execute(text(f"ALTER TABLE stories ADD COLUMN {name} {column_type}"))
+        if "story_corrections" in tables and "correction_data_json" not in correction_cols:
+            connection.execute(text("ALTER TABLE story_corrections ADD COLUMN correction_data_json TEXT"))

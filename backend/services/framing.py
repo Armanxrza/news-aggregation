@@ -1,33 +1,26 @@
-"""Government-POV framing with soft score distributions (never 100% flat neutral)."""
+"""Article-level editorial stance toward government actions (C/N/S)."""
 
 from __future__ import annotations
 
-import json
 import logging
+import json
 import re
 from functools import lru_cache
 from typing import Any
 
-from config import (
-    FINETUNED_MODEL_PATH,
-    FRAMING_ENABLED,
-    FRAMING_MIN_CHARS,
-    HF_FRAMING_MODEL,
-    ML_DIR,
-)
+from config import EVENT_RERANKER_ENABLED, FINETUNED_MODEL_PATH, FRAMING_ENABLED, FRAMING_MIN_CHARS, HF_FRAMING_MODEL, ML_DIR
+
+logger = logging.getLogger(__name__)
 
 DESK_MODEL_PATH = ML_DIR / "artifacts" / "framing-desk" / "model.joblib"
 DESK_METRICS_PATH = ML_DIR / "artifacts" / "framing-desk" / "metrics.json"
 DESK_MODEL_NAME = "framing-desk-v1"
 
-logger = logging.getLogger(__name__)
-
 LABELS = [
-    "government supportive framing",
-    "government critical framing",
-    "government neutral factual framing",
+    "the publication's own reporting endorses a positive evaluation of government action",
+    "the publication's own reporting endorses a negative evaluation of government action",
+    "the publication reports government-related facts without a discernible positive or negative editorial position",
 ]
-
 LABEL_MAP = {
     LABELS[0]: "supportive",
     LABELS[1]: "critical",
@@ -40,10 +33,10 @@ SUPPORTIVE_PATTERNS = [
     r"\bboost", r"\breform success", r"\beffective", r"\bhistoric",
     r"\bon time\b", r"\bunder budget\b", r"\bopened to\b", r"\balready appeared\b",
     r"\barrived before\b", r"\bwelcomed\b",
-    r"सफल", r"प्रशंसा", r"उपलब्धि", r"कल्याण", r"सुधार", r"प्रगति", r"उल्लेखनीय",
-    r"समयमै", r"खुले", r"खोलिए", r"देखिए", r"धन्यवाद",
+    r"\u0938\u092b\u0932", r"\u092a\u094d\u0930\u0936\u0902\u0938\u093e", r"\u0909\u092a\u0932\u092c\u094d\u0927\u093f",
+    r"\u0915\u0932\u094d\u092f\u093e\u0923", r"\u0938\u0941\u0927\u093e\u0930", r"\u092a\u094d\u0930\u0917\u0924\u093f",
+    r"\u0909\u0932\u094d\u0932\u0947\u0916\u0928\u0940\u092f", r"\u0938\u092e\u092f\u092e\u0948",
 ]
-
 CRITICAL_PATTERNS = [
     r"\bfail", r"\bcorrupt", r"\bmismanag", r"\bcritici", r"\bprotest",
     r"\balleg", r"\bscandal", r"\bcontrovers", r"\bblame", r"\bcondemn",
@@ -52,27 +45,64 @@ CRITICAL_PATTERNS = [
     r"\bhid\b", r"\bblocked\b", r"\bleft out\b", r"\bnever reached\b",
     r"\binflated\b", r"\bmissing\b", r"\bwhistleblow", r"\bmarched\b",
     r"\bfee hike\b", r"\bwatchdog\b", r"\bstill has no\b", r"\bmonths late\b",
-    r"भ्रष्ट", r"असफल", r"आलोचना", r"निन्दा", r"विरोध", r"प्रदर्शन",
-    r"आरोप", r"बेथिति", r"लापरबाही", r"विवाद", r"संकट", r"गुनासो",
-    r"लुका", r"रोके", r"ढिलो", r"छुट", r"नचले",
+    r"\u092d\u094d\u0930\u0937\u094d\u091f", r"\u0905\u0938\u092b\u0932", r"\u0906\u0932\u094b\u091a\u0928\u093e",
+    r"\u0928\u093f\u0928\u094d\u0926\u093e", r"\u0935\u093f\u0930\u094b\u0927", r"\u092a\u094d\u0930\u0926\u0930\u094d\u0936\u0928",
+    r"\u0906\u0930\u094b\u092a", r"\u092c\u0947\u0925\u093f\u0924\u093f", r"\u0932\u093e\u092a\u0930\u092c\u093e\u0939\u0940",
+    r"\u0935\u093f\u0935\u093e\u0926", r"\u0938\u0902\u0915\u091f", r"\u0917\u0941\u0928\u093e\u0938\u094b",
 ]
-
 GOV_ACTORS = [
     r"\bgovernment\b", r"\bcabinet\b", r"\bprime minister\b", r"\bpm\b",
     r"\bminister\b", r"\bparliament\b", r"\boli\b", r"\bdeuba\b",
     r"\bdahal\b", r"\bprachanda\b", r"\bstate\b", r"\bauthority\b",
-    r"सरकार", r"मन्त्रिपरिषद्", r"प्रधानमन्त्री", r"मन्त्री", r"संसद",
-    r"ओली", r"देउवा", r"प्रचण्ड", r"प्रशासन", r"अधिकारी",
+    r"\u0938\u0930\u0915\u093e\u0930", r"\u092e\u0928\u094d\u0924\u094d\u0930\u093f\u092a\u0930\u093f\u0937\u0926\u094d",
+    r"\u092a\u094d\u0930\u0927\u093e\u0928\u092e\u0928\u094d\u0924\u094d\u0930\u0940", r"\u092e\u0928\u094d\u0924\u094d\u0930\u0940",
+    r"\u0938\u0902\u0938\u0926", r"\u0913\u0932\u0940", r"\u0926\u0947\u0909\u0935\u093e", r"\u092a\u094d\u0930\u091a\u0923\u094d\u0921",
+    r"\u092a\u094d\u0930\u0936\u093e\u0938\u0928", r"\u0905\u0927\u093f\u0915\u093e\u0930\u0940",
 ]
+POSITIVE_NEAR = [r"\bgood\b", r"\bpositive\b", r"\bwelcomed?\b", r"\bpraised?\b", r"\bappreciat", r"\bstrong\b", r"\u0930\u093e\u092e\u094d\u0930\u094b", r"\u0938\u0915\u093e\u0930\u093e\u0924\u094d\u092e\u0915", r"\u0938\u094d\u0935\u093e\u0917\u0924"]
+NEGATIVE_NEAR = [r"\bbad\b", r"\bnegative\b", r"\bweak\b", r"\bpoor\b", r"\bangry\b", r"\bunhappy\b", r"\bdissatisf", r"\u0928\u0930\u093e\u092e\u094d\u0930\u094b", r"\u0928\u0915\u093e\u0930\u093e\u0924\u094d\u092e\u0915", r"\u0905\u0938\u0928\u094d\u0924\u0941\u0937\u094d\u091f"]
 
-POSITIVE_NEAR = [
-    r"\bgood\b", r"\bpositive\b", r"\bwelcomed?\b", r"\bpraised?\b",
-    r"\bappreciat", r"\bstrong\b", r"राम्रो", r"सकारात्मक", r"स्वागत",
+GOV_ACTOR_PATTERN = (
+    r"\bgovernment\b|\bcabinet\b|\bprime minister\b|\bminister\b|\bparliament\b|"
+    r"\bgovernment officials?\b|\bstate\b|\bauthorit(?:y|ies)\b|\bministry\b|"
+    r"सरकार|मन्त्रिपरिषद्|प्रधानमन्त्री|मन्त्री|संसद|प्रशासन|अधिकारी"
+)
+DIRECT_CRITICISM = (
+    r"\b(?:failed|failure|corrupt|mismanaged|negligent|ineffective|incompetent|"
+    r"reckless|irresponsible|poorly handled|violated|breached|abused|repressive)\b|"
+    r"भ्रष्ट|असफल|लापरबाही|अप्रभावकारी|दुरुपयोग|उल्लङ्घन|दमनकारी|कुशासन"
+)
+DIRECT_SUPPORT = (
+    r"\b(?:effective|successful|well.?managed|responsible|accountable|improved|"
+    r"fair|equitable|competent|effective policy|delivered on its promise)\b|"
+    r"प्रभावकारी|सफल|जवाफदेही|सुधारिएको|न्यायोचित|कुशल"
+)
+ATTRIBUTED = re.compile(
+    r"\b(?:said|says|according to|told|claimed|alleged|argued|criticized|criticised|"
+    r"praised|accused|warned|urged|complained|called for|denied)\b|"
+    r"(?:ले\s*(?:भने|बताए|बताइन्|आरोप लगाए|दाबी गरे|प्रशंसा गरे|आलोचना गरे))",
+    re.IGNORECASE,
+)
+QUOTED = re.compile(r"[\"“](.+?)[\"”]|‘(.+?)’", re.DOTALL)
+SENTENCE_SPLIT = re.compile(r"(?<=[.!?।])\s+")
+EVENT_RELATION_LABELS = [
+    "the same specific news event",
+    "a later development in the same event",
+    "related but separate events",
+    "different events in the same broad topic",
+    "unrelated news events",
 ]
-NEGATIVE_NEAR = [
-    r"\bbad\b", r"\bnegative\b", r"\bweak\b", r"\bpoor\b", r"\bangry\b",
-    r"\bunhappy\b", r"\bdissatisf", r"नराम्रो", r"नकारात्मक", r"असन्तुष्ट",
-]
+EVENT_RELATION_MAP = {
+    EVENT_RELATION_LABELS[0]: "SAME_EVENT",
+    EVENT_RELATION_LABELS[1]: "EVENT_UPDATE",
+    EVENT_RELATION_LABELS[2]: "DIRECTLY_RELATED_EVENT",
+    EVENT_RELATION_LABELS[3]: "SAME_TOPIC_DIFFERENT_EVENT",
+    EVENT_RELATION_LABELS[4]: "UNRELATED_EVENT",
+}
+
+
+def _count_hits(text: str, patterns: list[str]) -> int:
+    return sum(1 for pattern in patterns if re.search(pattern, text or "", re.IGNORECASE))
 
 
 @lru_cache(maxsize=1)
@@ -82,7 +112,7 @@ def _desk_classifier() -> Any | None:
     try:
         import joblib
 
-        logger.info("Loading desk framing model %s", DESK_MODEL_PATH)
+        logger.info("Loading bilingual desk framing model %s", DESK_MODEL_PATH)
         return joblib.load(DESK_MODEL_PATH)
     except Exception as exc:  # noqa: BLE001
         logger.warning("Desk framing model unavailable: %s", exc)
@@ -91,25 +121,23 @@ def _desk_classifier() -> Any | None:
 
 @lru_cache(maxsize=1)
 def _classifier() -> Any | None:
-    if not FRAMING_ENABLED or _desk_classifier() is not None:
+    if not FRAMING_ENABLED:
         return None
     model_id = FINETUNED_MODEL_PATH or HF_FRAMING_MODEL
     try:
         from transformers import pipeline
 
-        logger.info("Loading framing model %s", model_id)
+        logger.info("Loading multilingual stance NLI model %s", model_id)
         return pipeline("zero-shot-classification", model=model_id)
     except Exception as exc:  # noqa: BLE001
-        logger.warning("Framing model unavailable: %s", exc)
+        logger.warning("Stance model unavailable: %s", exc)
         return None
 
 
 def active_model_name() -> str:
     if _desk_classifier() is not None:
         return DESK_MODEL_NAME
-    if FINETUNED_MODEL_PATH:
-        return f"nepal-finetuned:{FINETUNED_MODEL_PATH}"
-    return HF_FRAMING_MODEL
+    return f"nepal-finetuned:{FINETUNED_MODEL_PATH}" if FINETUNED_MODEL_PATH else HF_FRAMING_MODEL
 
 
 def desk_metrics() -> dict[str, Any] | None:
@@ -121,237 +149,251 @@ def desk_metrics() -> dict[str, Any] | None:
         return None
 
 
-def _count_hits(text: str, patterns: list[str]) -> int:
-    return sum(1 for p in patterns if re.search(p, text, re.I))
+def rerank_event_relationships(pairs: list[tuple[str, str]]) -> list[dict[str, Any] | None]:
+    """Use the shared multilingual NLI cross-encoder on a small English candidate set.
+
+    Nepali pairs stay on multilingual embeddings and explicit event evidence:
+    this NLI checkpoint is not fine-tuned on Nepali and should not be used to
+    overrule a Devanagari event frame.
+    """
+    results: list[dict[str, Any] | None] = [None] * len(pairs)
+    if not pairs or not EVENT_RERANKER_ENABLED or not FRAMING_ENABLED:
+        return results
+    selected: list[int] = []
+    premises: list[str] = []
+    for index, (left, right) in enumerate(pairs):
+        if re.search(r"[\u0900-\u097f]", f"{left}{right}"):
+            continue
+        left = re.sub(r"\s+", " ", left or "")[:700]
+        right = re.sub(r"\s+", " ", right or "")[:700]
+        if not left or not right:
+            continue
+        selected.append(index)
+        premises.append(f"News report A: {left} News report B: {right}")
+    if not premises:
+        return results
+    classifier = _classifier()
+    if classifier is None:
+        return results
+    try:
+        outputs = classifier(
+            premises,
+            EVENT_RELATION_LABELS,
+            multi_label=False,
+            hypothesis_template="The reports describe {}.",
+        )
+        if isinstance(outputs, dict):
+            outputs = [outputs]
+        for original_index, output in zip(selected, outputs):
+            scores = list(zip(output.get("labels", []), output.get("scores", [])))
+            scores.sort(key=lambda item: float(item[1]), reverse=True)
+            if not scores:
+                continue
+            label, score = scores[0]
+            margin = float(score) - (float(scores[1][1]) if len(scores) > 1 else 0.0)
+            if float(score) < 0.46 or margin < 0.04:
+                continue
+            relation = EVENT_RELATION_MAP.get(label)
+            if relation:
+                results[original_index] = {
+                    "relationship": relation,
+                    "confidence": round(float(score), 4),
+                    "model": active_model_name(),
+                    "method": "english_nli_event_reranker",
+                }
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Event NLI reranking failed; retaining event-frame decisions: %s", exc)
+    return results
 
 
-def _snippets(text: str, patterns: list[str], limit: int = 3) -> list[str]:
-    out: list[str] = []
-    for p in patterns:
-        m = re.search(p, text, re.I)
-        if m:
-            start = max(0, m.start() - 30)
-            end = min(len(text), m.end() + 30)
-            out.append(text[start:end].strip())
-        if len(out) >= limit:
-            break
-    return out
+def _narrator_text(text: str) -> str:
+    """Exclude direct quotations and clearly attributed opinions from fallback evidence."""
+    no_quotes = QUOTED.sub(" ", text or "")
+    kept: list[str] = []
+    for sentence in SENTENCE_SPLIT.split(no_quotes):
+        sentence = sentence.strip()
+        if not sentence:
+            continue
+        # Attribution verbs often introduce an allegation or praise from a
+        # source. Treat that sentence as source speech, not publication stance.
+        if ATTRIBUTED.search(sentence):
+            continue
+        kept.append(sentence)
+    return "\n".join(kept)
 
 
 def _normalize(scores: dict[str, float]) -> dict[str, float]:
-    total = sum(max(0.0, v) for v in scores.values()) or 1.0
-    cleaned = {k: max(0.0, v) / total for k, v in scores.items()}
-    # Keep a tiny floor so bars never look "broken empty" on one side when
-    # other signal exists — but only if that class already has some mass.
-    return {
-        "critical": round(cleaned.get("critical", 0.0), 4),
-        "neutral": round(cleaned.get("neutral", 0.0), 4),
-        "supportive": round(cleaned.get("supportive", 0.0), 4),
-    }
+    values = {k: max(0.0, float(v)) for k, v in scores.items()}
+    total = sum(values.values())
+    if total <= 0:
+        return {"critical": 0.0, "neutral": 1.0, "supportive": 0.0}
+    return {k: round(v / total, 4) for k, v in values.items()}
 
 
-def _lexical_soft_scores(text: str) -> tuple[dict[str, float], list[str]]:
-    """Produce a variable Critical/Neutral/Supportive mix from text cues."""
-    critical_n = _count_hits(text, CRITICAL_PATTERNS)
-    supportive_n = _count_hits(text, SUPPORTIVE_PATTERNS)
-    gov_n = _count_hits(text, GOV_ACTORS)
-    pos_n = _count_hits(text, POSITIVE_NEAR)
-    neg_n = _count_hits(text, NEGATIVE_NEAR)
+def _rule_scores(text: str) -> tuple[dict[str, float], list[str], bool]:
+    narrative = _narrator_text(text)
+    gov_sentences = [s for s in SENTENCE_SPLIT.split(narrative) if re.search(GOV_ACTOR_PATTERN, s, re.I)]
+    if not gov_sentences:
+        return {"critical": 0.0, "neutral": 1.0, "supportive": 0.0}, [], False
 
-    # Start with an open prior (not 100% neutral) so stories differ
-    # Stronger gov mention → more room for evaluative lean
-    if gov_n >= 2:
-        scores = {"critical": 0.22, "neutral": 0.50, "supportive": 0.28}
-    elif gov_n == 1:
-        scores = {"critical": 0.20, "neutral": 0.55, "supportive": 0.25}
-    else:
-        # Non-gov stories still get a light spread from tone words
-        scores = {"critical": 0.18, "neutral": 0.62, "supportive": 0.20}
+    critical_evidence: list[str] = []
+    supportive_evidence: list[str] = []
+    for sentence in gov_sentences:
+        if re.search(DIRECT_CRITICISM, sentence, re.I):
+            critical_evidence.append(sentence.strip()[:240])
+        if re.search(DIRECT_SUPPORT, sentence, re.I):
+            supportive_evidence.append(sentence.strip()[:240])
 
-    scores["critical"] += 0.14 * critical_n + 0.06 * neg_n
-    scores["supportive"] += 0.14 * supportive_n + 0.06 * pos_n
+    c = len(critical_evidence)
+    s = len(supportive_evidence)
+    if c == 0 and s == 0:
+        return {"critical": 0.0, "neutral": 1.0, "supportive": 0.0}, [], True
+    scores = _normalize({"critical": float(c), "neutral": 0.25, "supportive": float(s)})
+    return scores, (critical_evidence + supportive_evidence)[:3], True
 
-    # If one side clearly wins, pull mass from neutral
-    if critical_n > supportive_n and critical_n > 0:
-        pull = min(0.28, 0.08 * (critical_n - supportive_n + 1))
-        scores["neutral"] = max(0.12, scores["neutral"] - pull)
-        scores["critical"] += pull
-    elif supportive_n > critical_n and supportive_n > 0:
-        pull = min(0.28, 0.08 * (supportive_n - critical_n + 1))
-        scores["neutral"] = max(0.12, scores["neutral"] - pull)
-        scores["supportive"] += pull
-    elif critical_n == 0 and supportive_n == 0:
-        # Tone-only lean so not every story is identical
-        if neg_n > pos_n:
-            scores["critical"] += 0.08 * (neg_n - pos_n)
-            scores["neutral"] -= 0.05 * (neg_n - pos_n)
-        elif pos_n > neg_n:
-            scores["supportive"] += 0.08 * (pos_n - neg_n)
-            scores["neutral"] -= 0.05 * (pos_n - neg_n)
-        else:
-            # Hash-stable mild variation from headline so neighboring
-            # stories don't all render the same 20/60/20 bar.
-            seed = sum(ord(ch) for ch in text[:80]) % 17
-            scores["critical"] += (seed - 8) * 0.006
-            scores["supportive"] += (8 - seed) * 0.006
 
+def _result(
+    scores: dict[str, float],
+    *,
+    model: str,
+    method: str,
+    evidence: str,
+    uncertainty: str,
+) -> dict[str, Any]:
     scores = _normalize(scores)
-    # Guarantee visible minority slices when dominant is neutral
-    if scores["neutral"] > 0.85:
-        overflow = scores["neutral"] - 0.72
-        scores["neutral"] = 0.72
-        scores["critical"] += overflow * 0.45
-        scores["supportive"] += overflow * 0.55
-        scores = _normalize(scores)
-
-    snips = _snippets(text, CRITICAL_PATTERNS + SUPPORTIVE_PATTERNS)
-    return scores, snips
+    label_key = max(scores, key=scores.get)
+    return {
+        "label": f"government_{label_key}",
+        "confidence": round(scores[label_key], 4),
+        "scores": scores,
+        "model": model,
+        "method": method,
+        "evidence": evidence,
+        "uncertainty": uncertainty,
+        "nepal_finetuned": bool(FINETUNED_MODEL_PATH),
+    }
 
 
 def analyze_government_framing(text: str, *, lexical_only: bool = False) -> dict[str, Any]:
-    """
-    Soft government-POV scores for every article.
-    Returns label (argmax) + scores{critical,neutral,supportive} summing to ~1.
-    """
+    """Classify the publication's own stance, not event sentiment or quoted views."""
     cleaned = (text or "").strip()
     if len(cleaned) < 12:
-        scores = {"critical": 0.20, "neutral": 0.55, "supportive": 0.25}
-        return {
-            "label": "government_neutral",
-            "confidence": 0.35,
-            "scores": scores,
-            "model": "default-soft",
-            "method": "default",
-            "evidence": "Short text; soft neutral-leaning government POV prior.",
-            "uncertainty": "high",
-            "nepal_finetuned": bool(FINETUNED_MODEL_PATH),
-        }
+        return _result(
+            {"critical": 0.0, "neutral": 1.0, "supportive": 0.0},
+            model="stance-insufficient-v4",
+            method="stance-v4-insufficient",
+            evidence="Too little article text to infer an editorial stance.",
+            uncertainty="high",
+        )
 
-    lexical_scores, snips = _lexical_soft_scores(cleaned)
+    rule_scores, rule_evidence, government_referenced = _rule_scores(cleaned)
+    if not government_referenced:
+        return _result(
+            rule_scores,
+            model="gov-stance-rule-v4",
+            method="stance-v4-no-government-target",
+            evidence="No clear government target appears in the article text.",
+            uncertainty="high",
+        )
+
+    narrative = _narrator_text(cleaned)
     desk = None if lexical_only else _desk_classifier()
-    if desk is not None and len(cleaned) >= 12:
+    if desk is not None and len(narrative) >= 12:
         try:
-            proba = desk.predict_proba([cleaned[:6000]])[0]
-            classes = [str(label) for label in desk.classes_]
+            probabilities = desk.predict_proba([narrative[:6000]])[0]
             model_scores = {"critical": 0.0, "neutral": 0.0, "supportive": 0.0}
-            for label, score in zip(classes, proba):
-                key = label.removeprefix("government_")
+            for class_name, score in zip(desk.classes_, probabilities):
+                key = str(class_name).removeprefix("government_")
                 if key in model_scores:
                     model_scores[key] = float(score)
-            blended = _normalize(
-                {
-                    "critical": 0.75 * model_scores["critical"] + 0.25 * lexical_scores["critical"],
-                    "neutral": 0.75 * model_scores["neutral"] + 0.25 * lexical_scores["neutral"],
-                    "supportive": 0.75 * model_scores["supportive"] + 0.25 * lexical_scores["supportive"],
-                }
-            )
-            label_key = max(blended, key=blended.get)
-            conf = round(blended[label_key], 4)
-            evidence = (
-                f"Desk classifier {DESK_MODEL_NAME} "
-                f"C:{blended['critical']:.0%} N:{blended['neutral']:.0%} S:{blended['supportive']:.0%}."
-            )
-            if snips:
-                evidence += " Spans: " + " | ".join(snips[:2])
-            return {
-                "label": f"government_{label_key}",
-                "confidence": conf,
-                "scores": blended,
-                "model": DESK_MODEL_NAME,
-                "method": "desk_classifier",
-                "evidence": evidence,
-                "uncertainty": "low" if conf >= 0.55 else "medium",
-                "nepal_finetuned": False,
-            }
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("Desk framing failed: %s", exc)
-
-    clf = None if lexical_only else _classifier()
-    model_name = active_model_name()
-
-    if clf is not None and len(cleaned) >= max(20, FRAMING_MIN_CHARS // 2):
-        try:
-            result = clf(cleaned[:6000], LABELS, multi_label=False)
-            nli: dict[str, float] = {"critical": 0.0, "neutral": 0.0, "supportive": 0.0}
-            for lab, score in zip(result["labels"], result["scores"]):
-                nli[LABEL_MAP[lab]] = float(score)
-            nli = _normalize(nli)
-            # Blend NLI with lexical so Nepal cues still matter
             blended = _normalize({
-                "critical": 0.7 * nli["critical"] + 0.3 * lexical_scores["critical"],
-                "neutral": 0.7 * nli["neutral"] + 0.3 * lexical_scores["neutral"],
-                "supportive": 0.7 * nli["supportive"] + 0.3 * lexical_scores["supportive"],
+                key: 0.75 * model_scores[key] + 0.25 * rule_scores[key]
+                for key in model_scores
             })
-            # Cap extreme neutral collapse from NLI on short RSS blurbs
-            if blended["neutral"] > 0.82:
-                overflow = blended["neutral"] - 0.70
-                blended["neutral"] = 0.70
-                blended["critical"] += overflow * 0.5
-                blended["supportive"] += overflow * 0.5
-                blended = _normalize(blended)
-
-            label_key = max(blended, key=blended.get)
-            label = f"government_{label_key}"
-            conf = round(blended[label_key], 4)
-            evidence = f"Soft gov-POV scores C:{blended['critical']:.0%} N:{blended['neutral']:.0%} S:{blended['supportive']:.0%}."
-            if snips:
-                evidence += " Spans: " + " | ".join(snips[:2])
-            return {
-                "label": label,
-                "confidence": conf,
-                "scores": blended,
-                "model": model_name,
-                "method": "nli_soft_blend",
-                "evidence": evidence,
-                "uncertainty": "low" if conf >= 0.55 else "medium",
-                "nepal_finetuned": bool(FINETUNED_MODEL_PATH),
-            }
+            top = max(blended, key=blended.get)
+            evidence = f"Bilingual desk classifier C:{blended['critical']:.0%} N:{blended['neutral']:.0%} S:{blended['supportive']:.0%}."
+            if rule_evidence:
+                evidence += " Evidence: " + " | ".join(rule_evidence[:2])
+            return _result(
+                blended,
+                model=DESK_MODEL_NAME,
+                method="desk_classifier",
+                evidence=evidence,
+                uncertainty="low" if blended[top] >= 0.65 else "medium",
+            )
         except Exception as exc:  # noqa: BLE001
-            logger.warning("NLI framing failed: %s", exc)
+            logger.warning("Desk framing failed; using validated fallback: %s", exc)
 
-    label_key = max(lexical_scores, key=lexical_scores.get)
-    label = f"government_{label_key}"
-    conf = round(lexical_scores[label_key], 4)
-    evidence = (
-        f"Soft gov-POV (lexical) C:{lexical_scores['critical']:.0%} "
-        f"N:{lexical_scores['neutral']:.0%} S:{lexical_scores['supportive']:.0%}."
+    # XNLI fine-tuning covers Hindi but not Nepali. Keep Nepali stance calls on
+    # the conservative evidence rules until a Nepali stance checkpoint is validated.
+    nepali_script = bool(re.search(r"[\u0900-\u097f]", cleaned))
+    clf = None if lexical_only or nepali_script else _classifier()
+    if clf is not None and len(narrative) >= max(20, FRAMING_MIN_CHARS // 2):
+        try:
+            output = clf(narrative[:6000], LABELS, multi_label=False)
+            nli = {"critical": 0.0, "neutral": 0.0, "supportive": 0.0}
+            for label, score in zip(output["labels"], output["scores"]):
+                key = LABEL_MAP.get(label)
+                if key:
+                    nli[key] = float(score)
+            nli = _normalize(nli)
+            top = max(nli, key=nli.get)
+            ordered = sorted(nli.values(), reverse=True)
+            margin = ordered[0] - ordered[1]
+            # If NLI finds no clear position, use the defined neutral category
+            # with explicit uncertainty instead of amplifying a weak label.
+            if top != "neutral" and (nli[top] < 0.52 or margin < 0.10):
+                nli = {"critical": 0.0, "neutral": 1.0, "supportive": 0.0}
+                top = "neutral"
+            spans = rule_evidence or [s.strip()[:220] for s in SENTENCE_SPLIT.split(narrative) if s.strip()][:2]
+            evidence = f"Multilingual NLI assessment of unquoted, non-attributed reporting."
+            if spans:
+                evidence += " Evidence: " + " | ".join(spans[:2])
+            return _result(
+                nli,
+                model=active_model_name(),
+                method="stance-v4-nli",
+                evidence=evidence,
+                uncertainty="low" if max(nli.values()) >= 0.68 and margin >= 0.18 else "medium",
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Stance NLI failed; using conservative rules: %s", exc)
+
+    label = max(rule_scores, key=rule_scores.get)
+    if rule_evidence:
+        evidence = "Unquoted evaluative language in the publication's own reporting: " + " | ".join(rule_evidence[:2])
+        uncertainty = "medium"
+    else:
+        evidence = "No unquoted evaluative stance toward government actions was detected; factual reporting remains neutral."
+        uncertainty = "medium"
+    return _result(
+        rule_scores,
+        model="gov-stance-rule-v4",
+        method="stance-v4-rule-fallback",
+        evidence=evidence,
+        uncertainty=uncertainty,
     )
-    if snips:
-        evidence += " Spans: " + " | ".join(snips[:2])
-
-    return {
-        "label": label,
-        "confidence": conf,
-        "scores": lexical_scores,
-        "model": "gov-pov-soft-lexical-v3",
-        "method": "lexical_soft",
-        "evidence": evidence,
-        "uncertainty": "medium",
-        "nepal_finetuned": False,
-    }
 
 
 def framing_to_bias_pcts(score_rows: list[dict[str, float]]) -> dict[str, float]:
-    """Average soft scores across articles → story percentages."""
+    """Average per-publication stance probabilities for legacy UI field names."""
     if not score_rows:
         return {
-            "bias_left_pct": 20.0,
-            "bias_center_pct": 55.0,
-            "bias_right_pct": 25.0,
+            "bias_left_pct": 0.0,
+            "bias_center_pct": 100.0,
+            "bias_right_pct": 0.0,
             "gov_critical": 0,
             "gov_neutral": 0,
             "gov_supportive": 0,
         }
-
-    avg = {"critical": 0.0, "neutral": 0.0, "supportive": 0.0}
-    hard = {"critical": 0, "neutral": 0, "supportive": 0}
+    avg = {k: 0.0 for k in ("critical", "neutral", "supportive")}
+    hard = {k: 0 for k in avg}
     for row in score_rows:
         for key in avg:
             avg[key] += float(row.get(key, 0.0))
-        top = max(row, key=row.get)
-        hard[top] += 1
+        hard[max(row, key=row.get)] += 1
     n = len(score_rows)
-    avg = _normalize({k: v / n for k, v in avg.items()})
+    avg = _normalize({key: value / n for key, value in avg.items()})
     return {
         "bias_left_pct": round(100 * avg["critical"], 1),
         "bias_center_pct": round(100 * avg["neutral"], 1),

@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import datetime
+import hashlib
+import html
+import ipaddress
 import json
 import os
 import re
 import sys
+import time
 from difflib import SequenceMatcher
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
@@ -29,7 +33,13 @@ from services.bias_signals import extract_signals
 from services.claims import analyze_article_claims
 from services.clustering import get_or_create_story
 from services.language import detect_language
-from services.nepal import classify_topics, ensure_entity_file, extract_entities
+from services.nepal import classify_topics, ensure_entity_file
+from services.editorial import analyze_editorial_context
+from services.event_intelligence import extract_event_frame, normalize_for_analysis
+from services.embedding import model_id
+from services.ner import extract_news_entities
+
+ANALYSIS_VERSION = "event-intelligence-v1"
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -140,6 +150,25 @@ def feed_fetch_url(rss_url: str) -> str:
     return rss_url
 
 
+def feed_url_is_safe(rss_url: str) -> bool:
+    """Only fetch explicitly configured public HTTP(S) RSS endpoints."""
+    try:
+        parts = urlsplit(rss_url)
+        if parts.scheme.lower() not in {"http", "https"} or not parts.hostname or parts.username or parts.password:
+            return False
+        host = parts.hostname.rstrip(".").casefold()
+        if host in {"localhost", "localhost.localdomain"} or host.endswith((".local", ".internal")):
+            return False
+        try:
+            if not ipaddress.ip_address(host).is_global:
+                return False
+        except ValueError:
+            pass
+        return True
+    except ValueError:
+        return False
+
+
 def extract_thumbnail(entry) -> str | None:
     if hasattr(entry, "media_thumbnail") and entry.media_thumbnail:
         return entry.media_thumbnail[0].get("url")
@@ -177,6 +206,81 @@ def normalize_url(url: str) -> str:
 
 def normalize_title(title: str) -> str:
     return re.sub(r"[^\w\u0900-\u097f]+", " ", title.casefold()).strip()
+
+
+def clean_rss_text(value: str | None) -> str:
+    """Reduce untrusted RSS markup to inert plain text for analysis and storage."""
+    raw = html.unescape(value or "")
+    raw = re.sub(r"(?is)<(script|style|iframe|object)[^>]*>.*?</\1\s*>", " ", raw)
+    raw = re.sub(r"(?i)<br\s*/?>|</(?:p|div|li|h[1-6])\s*>", " ", raw)
+    raw = re.sub(r"<[^>]*>", " ", raw)
+    return re.sub(r"\s+", " ", raw).strip()[:12000]
+
+
+def content_fingerprint(title: str, content: str) -> str:
+    normalized = normalize_for_analysis(f"{title}\n{content}")
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
+def _find_exact_duplicate(db: Session, article: Article, fingerprint: str) -> tuple[int | None, str | None]:
+    prior = (
+        db.query(Article.id)
+        .filter(Article.id != article.id, Article.content_fingerprint == fingerprint)
+        .order_by(Article.published_at.asc(), Article.id.asc())
+        .first()
+    )
+    if prior:
+        return prior[0], "exact_syndicated"
+    if article.published_at:
+        candidates = (
+            db.query(Article.id, Article.original_headline, Article.content_text)
+            .filter(
+                Article.id != article.id,
+                Article.published_at >= article.published_at - datetime.timedelta(days=7),
+                Article.published_at <= article.published_at + datetime.timedelta(days=7),
+            )
+            .order_by(Article.published_at.desc())
+            .limit(250)
+            .all()
+        )
+        current_body = normalize_for_analysis(article.content_text or "")
+        current_title = normalize_title(article.original_headline or "")
+        if len(current_body) >= 100 and len(current_title) >= 20:
+            for candidate in candidates:
+                prior_body = normalize_for_analysis(candidate.content_text or "")
+                prior_title = normalize_title(candidate.original_headline or "")
+                if len(prior_body) < 100 or len(prior_title) < 20:
+                    continue
+                title_ratio = SequenceMatcher(None, current_title, prior_title, autojunk=False).ratio()
+                if title_ratio < 0.94:
+                    continue
+                body_ratio = SequenceMatcher(None, current_body, prior_body, autojunk=False).ratio()
+                if body_ratio >= 0.92:
+                    return candidate.id, "near_syndicated"
+    return None, None
+
+
+def fetch_feed(rss_url: str) -> bytes:
+    """Fetch a configured feed with bounded retry and exponential backoff."""
+    last_error: Exception | None = None
+    for attempt in range(3):
+        try:
+            response = requests.get(rss_url, headers=HEADERS, timeout=config.REQUEST_TIMEOUT)
+            if response.status_code in {429, 500, 502, 503, 504} and attempt < 2:
+                retry_after = response.headers.get("Retry-After")
+                delay = min(8.0, float(retry_after)) if retry_after and retry_after.isdigit() else 0.5 * (2 ** attempt)
+                time.sleep(delay)
+                continue
+            response.raise_for_status()
+            return response.content
+        except requests.RequestException as exc:
+            last_error = exc
+            if attempt == 2:
+                break
+            time.sleep(0.5 * (2 ** attempt))
+    if last_error:
+        raise last_error
+    raise RuntimeError("Feed request failed after retries")
 
 
 def is_near_duplicate(title: str, existing_titles: list[str], threshold: float = 0.92) -> bool:
@@ -225,14 +329,23 @@ def _enrich_article(
         article_lang = detected
 
     topics = classify_topics(combined, default=category or "Nepal")
-    entities = extract_entities(combined)
+    entities, entity_model = extract_news_entities(combined)
     signals = extract_signals(combined, entities)
+    signals["entity_model"] = entity_model
 
     article.language = source.language
     article.detected_language = article_lang
     article.topics_json = _json_dumps(topics)
     article.entities_json = _json_dumps(entities)
+    article.entities_model = entity_model
     article.signals_json = _json_dumps(signals)
+    article.event_frame_json = _json_dumps(
+        extract_event_frame(combined, entities=entities, topics=topics)
+    )
+    article.editorial_json = _json_dumps(
+        analyze_editorial_context(title, content_text, entities=entities, source_name=source.name)
+    )
+    article.content_fingerprint = content_fingerprint(title, content_text)
 
     story, _meta = get_or_create_story(
         db,
@@ -241,17 +354,23 @@ def _enrich_article(
         published_at=published_at,
         content=content_text,
         language=article_lang,
+        entities=entities,
+        topics=topics,
+        source_name=source.name,
     )
     article.story_id = story.id
+    article.embedding = _meta.get("article_embedding")
+    article.embedding_model = _meta.get("embedding_model") or model_id()
 
     # Government POV framing — soft scores always (lexical if NLI off)
-    framing = analyze_government_framing(combined, lexical_only=not ANALYZE_ON_CRAWL)
-    article.government_framing = framing.get("label")
-    article.framing_confidence = framing.get("confidence")
-    article.framing_model = framing.get("model")
-    article.framing_evidence = framing.get("evidence")
-    article.framing_method = framing.get("method")
-    article.framing_scores_json = _json_dumps(framing.get("scores"))
+    if not article.framing_is_corrected:
+        framing = analyze_government_framing(combined, lexical_only=not ANALYZE_ON_CRAWL)
+        article.government_framing = framing.get("label")
+        article.framing_confidence = framing.get("confidence")
+        article.framing_model = framing.get("model")
+        article.framing_evidence = framing.get("evidence")
+        article.framing_method = framing.get("method")
+        article.framing_scores_json = _json_dumps(framing.get("scores"))
 
     bias = analyze_political_bias(combined, lexical_only=True)
     article.political_bias = bias.get("label")
@@ -264,6 +383,9 @@ def _enrich_article(
 
     if ANALYZE_CLAIMS_ON_CRAWL:
         analyze_article_claims(db, article, replace=True)
+    article.analysis_version = ANALYSIS_VERSION
+    article.analysis_status = "complete"
+    article.analysis_error = None
 
 
 def crawl_rss() -> dict:
@@ -299,13 +421,9 @@ def crawl_rss() -> dict:
         print(f"\n[*] Fetching {source.name} ({rss_url}) ...")
 
         try:
-            resp = requests.get(
-                rss_url,
-                headers=HEADERS,
-                timeout=config.REQUEST_TIMEOUT,
-            )
-            resp.raise_for_status()
-            feed = feedparser.parse(resp.content)
+            if not feed_url_is_safe(rss_url):
+                raise ValueError("RSS URL must use public HTTP(S) and cannot target a local host")
+            feed = feedparser.parse(fetch_feed(rss_url))
         except Exception as exc:
             feeds_failed += 1
             msg = str(exc)
@@ -329,42 +447,60 @@ def crawl_rss() -> dict:
         feeds_succeeded += 1
         category = source.category or "Nepal"
         count = 0
-        recent_titles = _recent_titles_for_source(db, source.id)
 
         for entry in feed.entries[:per_feed_limit]:
             url = getattr(entry, "link", None)
-            title = getattr(entry, "title", None)
+            title = clean_rss_text(getattr(entry, "title", None))
             if not url or not title:
                 continue
 
-            url = normalize_url(url)
-            if db.query(Article.id).filter(Article.url == url).first():
+            try:
+                url = normalize_url(url)
+            except ValueError:
                 continue
-
-            if is_near_duplicate(title, recent_titles):
+            if not feed_url_is_safe(url):
                 continue
 
             published_at = _parse_published(entry)
-            content_text = getattr(entry, "summary", "") or ""
-            thumbnail = extract_thumbnail(entry)
-
-            article = Article(
-                source_id=source.id,
-                original_headline=title,
-                url=url,
-                thumbnail_url=thumbnail,
-                content_text=content_text,
-                published_at=published_at,
+            content_text = clean_rss_text(
+                getattr(entry, "content", [{}])[0].get("value")
+                if getattr(entry, "content", None)
+                else getattr(entry, "summary", "") or getattr(entry, "description", "")
             )
-            db.add(article)
+            thumbnail = extract_thumbnail(entry)
+            fingerprint = content_fingerprint(title, content_text)
+            article = db.query(Article).filter(Article.url == url).first()
+            is_new = article is None
+            if article and article.content_fingerprint == fingerprint and article.analysis_version == ANALYSIS_VERSION:
+                continue
+            if article is None:
+                article = Article(source_id=source.id, url=url, original_headline=title, content_text=content_text)
+                db.add(article)
+            article.original_headline = title[:512]
+            article.thumbnail_url = thumbnail or article.thumbnail_url
+            article.content_text = content_text
+            article.published_at = published_at
+            article.crawled_at = datetime.datetime.utcnow()
+            article.content_fingerprint = fingerprint
+            article.analysis_status = "processing"
+            article.analysis_error = None
             db.flush()
+            duplicate_id, duplicate_kind = _find_exact_duplicate(db, article, fingerprint)
+            article.duplicate_of_id = duplicate_id
+            article.duplicate_kind = duplicate_kind
 
             try:
                 _enrich_article(
                     db, article, source, title, content_text, category, published_at
                 )
+                db.commit()
             except Exception as exc:
                 db.rollback()
+                failed_article = db.query(Article).filter(Article.url == url).first()
+                if failed_article:
+                    failed_article.analysis_status = "failed"
+                    failed_article.analysis_error = str(exc)[:2000]
+                    db.commit()
                 errors.append({
                     "source": source.name,
                     "url": url,
@@ -373,10 +509,10 @@ def crawl_rss() -> dict:
                 print(f"  [!] Skipped article enrich ({url}): {exc}")
                 continue
 
-            recent_titles.append(normalize_title(title))
-            count += 1
-            new_articles += 1
-            source.article_count = (source.article_count or 0) + 1
+            if is_new:
+                count += 1
+                new_articles += 1
+                source.article_count = (source.article_count or 0) + 1
 
         source.last_crawl_at = datetime.datetime.utcnow()
         source.last_crawl_status = "ok"
