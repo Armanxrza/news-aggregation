@@ -79,6 +79,13 @@ def seed_eval_pairs(db) -> tuple[int, int]:
     if not path.exists():
         return 0, 0
     added = skipped = 0
+    # SessionLocal disables autoflush, so rows queued in this loop are not
+    # visible to the existence query until commit. Track persisted and pending
+    # pairs in memory to make seeding safe for repeated/duplicate fixture rows.
+    known_pairs = {
+        (left, right)
+        for left, right in db.query(EvalPair.left_text, EvalPair.right_text).all()
+    }
     for line in path.read_text(encoding="utf-8").splitlines():
         line = line.strip()
         if not line:
@@ -88,12 +95,8 @@ def seed_eval_pairs(db) -> tuple[int, int]:
         right = row.get("right") or row.get("right_text")
         if not left or not right:
             continue
-        exists = (
-            db.query(EvalPair.id)
-            .filter(EvalPair.left_text == left, EvalPair.right_text == right)
-            .first()
-        )
-        if exists:
+        pair = (left, right)
+        if pair in known_pairs:
             skipped += 1
             continue
         db.add(
@@ -105,6 +108,7 @@ def seed_eval_pairs(db) -> tuple[int, int]:
                 notes=row.get("notes"),
             )
         )
+        known_pairs.add(pair)
         added += 1
     db.commit()
     return added, skipped

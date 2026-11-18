@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import sys
 from pathlib import Path
@@ -20,13 +21,14 @@ os.environ["ANALYZE_ON_CRAWL"] = "false"
 from fastapi.testclient import TestClient  # noqa: E402
 
 import database  # noqa: E402
-from database import Article, SessionLocal, Source, Story, init_db  # noqa: E402
+from database import Article, EvalPair, SessionLocal, Source, Story, init_db  # noqa: E402
 from services.clustering import get_or_create_story  # noqa: E402
 from services.language import detect_language  # noqa: E402
 from services.nepal import classify_topics, extract_entities  # noqa: E402
 from services.claims import extract_claims_from_text  # noqa: E402
 from services.framing import analyze_government_framing  # noqa: E402
 from services.event_intelligence import classify_event_relationship, extract_event_frame  # noqa: E402
+from scripts import seed as seed_module  # noqa: E402
 
 
 def setup_module():
@@ -56,6 +58,29 @@ def test_entity_extraction():
 def test_topic_classification():
     topics = classify_topics("Parliament debated the election bill amid coalition talks.")
     assert "Politics" in topics
+
+
+def test_seed_eval_pairs_deduplicates_pending_rows_and_is_idempotent(tmp_path, monkeypatch):
+    pair = {
+        "left": "Seeding duplicate regression headline A",
+        "right": "Seeding duplicate regression headline B",
+        "same_event": True,
+    }
+    (tmp_path / "story_pairs.jsonl").write_text(
+        json.dumps(pair) + "\n" + json.dumps(pair) + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(seed_module.config, "DATA_DIR", tmp_path)
+
+    db = SessionLocal()
+    try:
+        assert seed_module.seed_eval_pairs(db) == (1, 1)
+        assert seed_module.seed_eval_pairs(db) == (0, 2)
+        assert db.query(EvalPair).filter(
+            EvalPair.left_text == pair["left"], EvalPair.right_text == pair["right"]
+        ).count() == 1
+    finally:
+        db.close()
 
 
 def test_claim_extraction():
